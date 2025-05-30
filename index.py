@@ -636,6 +636,8 @@ HTML_TEMPLATE = '''
 
 
 # Flask routes
+
+
 @app.route('/')
 def index():
     """Main dashboard page"""
