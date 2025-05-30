@@ -655,7 +655,30 @@ HTML_TEMPLATE = '''
 </body>
 </html>
 '''
-
+MANUAL_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Lead Entry</title>
+    <!-- Add same CSS styles as main template -->
+</head>
+<body>
+    <div class="container">
+        <h1>Manual Lead Entry</h1>
+        <form id="manualForm">
+            <input type="email" placeholder="Email" required>
+            <input type="text" placeholder="Name" required>
+            <input type="text" placeholder="Address">
+            <input type="text" placeholder="Customer Number">
+            <button type="submit">Add Lead</button>
+        </form>
+        <a href="/">Back to Dashboard</a>
+    </div>
+</body>
+</html>
+'''
 
 # Flask routes
 @app.route('/manual')
