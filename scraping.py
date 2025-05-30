@@ -110,6 +110,9 @@ def google_search_extract_emails(search_query="site:instagram.com \"fitness Coac
             return None
 
 
+import csv
+
+
 def main():
     """Main scraping function to be called from the web interface"""
     try:
@@ -117,22 +120,88 @@ def main():
         filename = google_search_extract_emails(query)
 
         if filename:
-            # Count the emails in the file
+            # Read scraped emails from file
+            scraped_emails = []
             with open(filename, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
                 # Skip the header lines (first 4 lines)
-                email_count = len([line for line in lines[4:] if line.strip()])
+                for line in lines[4:]:
+                    email = line.strip()
+                    if email:
+                        scraped_emails.append(email)
+
+            # Read existing emails from CSV
+            existing_emails = set()
+            csv_file = 'clients.csv'
+
+            try:
+                with open(csv_file, 'r', newline='', encoding='utf-8') as csvfile:
+                    reader = csv.reader(csvfile)
+                    next(reader, None)  # Skip header
+                    for row in reader:
+                        if len(row) > 0:
+                            existing_emails.add(row[0].strip().lower())
+            except FileNotFoundError:
+                # If CSV doesn't exist, create it with header
+                with open(csv_file, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(['Email', 'Customer Name', 'Address', 'Customer Number', 'Sent'])
+
+            # Filter out existing emails and add new ones
+            new_emails = []
+            for email in scraped_emails:
+                if email.lower() not in existing_emails:
+                    new_emails.append(email)
+
+            # Add new emails to CSV
+            if new_emails:
+                with open(csv_file, 'a', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    customer_number = 27077  # Start from next number
+
+                    # Get the last customer number from existing data
+                    try:
+                        with open(csv_file, 'r', newline='', encoding='utf-8') as read_file:
+                            reader = csv.reader(read_file)
+                            next(reader, None)  # Skip header
+                            last_number = 27076
+                            for row in reader:
+                                if len(row) > 3 and row[3].isdigit():
+                                    last_number = max(last_number, int(row[3]))
+                            customer_number = last_number + 1
+                    except:
+                        pass
+
+                    # Add new emails to CSV
+                    for email in new_emails:
+                        writer.writerow([
+                            email,
+                            "No data fulfill your filter criteria",  # Default name
+                            "Scraped Lead",  # Default address
+                            str(customer_number),
+                            "No"  # Not sent yet
+                        ])
+                        customer_number += 1
+
+            # Delete the temporary scraping file
+            try:
+                os.remove(filename)
+                print(f"Temporary file {filename} deleted successfully")
+            except Exception as e:
+                print(f"Warning: Could not delete temporary file {filename}: {e}")
 
             return {
                 "status": "success",
-                "leads_scraped": email_count,
-                "filename": filename,
-                "message": f"Successfully scraped {email_count} emails and saved to {filename}"
+                "leads_scraped": len(scraped_emails),
+                "new_leads_added": len(new_emails),
+                "existing_leads_skipped": len(scraped_emails) - len(new_emails),
+                "message": f"Scraping completed! Found {len(scraped_emails)} emails, added {len(new_emails)} new leads to CSV, skipped {len(scraped_emails) - len(new_emails)} existing emails."
             }
         else:
             return {
                 "status": "error",
                 "leads_scraped": 0,
+                "new_leads_added": 0,
                 "message": "Scraping failed - no file generated"
             }
 
@@ -140,5 +209,6 @@ def main():
         return {
             "status": "error",
             "leads_scraped": 0,
+            "new_leads_added": 0,
             "message": f"Scraping error: {str(e)}"
         }
