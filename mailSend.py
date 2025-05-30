@@ -9,7 +9,7 @@ smtp_password = "hpitjdlzhhmnhurc"
 
 # Email details
 from_email = "ahmnanzil33@gmail.com"
-to_email = "ahmnanzil11@gmail.com"
+to_email = "ahmnanzil111@gmail.com"
 subject = "Test Email from Python"
 body = "Hello! This is a test email sent using Python and Gmail SMTP."
 
