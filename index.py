@@ -20,7 +20,7 @@ import threading
 import gc
 
 # Configuration
-BATCH_SIZE = 400
+BATCH_SIZE = 1
 CSV_FILE = 'clients.csv'
 TRACKING_FILE = 'email_tracking.json'
 EMAIL_TEMPLATE = 'emailbody.html'
