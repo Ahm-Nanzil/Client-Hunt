@@ -17,7 +17,7 @@ def get_chrome_user_data_dir():
     return None
 
 
-def google_search_extract_emails(search_query="site:instagram.com \"fitness Coach\" \"@gmail.com\""):
+def google_search_extract_emails(search_query="site:instagram.com \"Football Coach\" \"@gmail.com\""):
     chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
     user_data_dir = get_chrome_user_data_dir()
     profile_path = os.path.join(user_data_dir, "Default")
