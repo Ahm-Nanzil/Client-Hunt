@@ -110,6 +110,35 @@ def google_search_extract_emails(search_query="site:instagram.com \"fitness Coac
             return None
 
 
-if __name__ == "__main__":
-    query = 'site:instagram.com "fitness Coach" "@gmail.com"'
-    google_search_extract_emails(query)
+def main():
+    """Main scraping function to be called from the web interface"""
+    try:
+        query = 'site:instagram.com "fitness Coach" "@gmail.com"'
+        filename = google_search_extract_emails(query)
+
+        if filename:
+            # Count the emails in the file
+            with open(filename, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # Skip the header lines (first 4 lines)
+                email_count = len([line for line in lines[4:] if line.strip()])
+
+            return {
+                "status": "success",
+                "leads_scraped": email_count,
+                "filename": filename,
+                "message": f"Successfully scraped {email_count} emails and saved to {filename}"
+            }
+        else:
+            return {
+                "status": "error",
+                "leads_scraped": 0,
+                "message": "Scraping failed - no file generated"
+            }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "leads_scraped": 0,
+            "message": f"Scraping error: {str(e)}"
+        }
