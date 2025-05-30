@@ -535,6 +535,8 @@ HTML_TEMPLATE = '''
                 Reset Campaign
             </button>
         </form>
+        <button type="button" onclick="window.location.href='/manual'">Manual Lead Entry</button>
+        <button type="button" onclick="startScraping()" id="scrapingBtn">Start Scraping</button>
 
         <div id="result"></div>
 
@@ -636,7 +638,28 @@ HTML_TEMPLATE = '''
 
 
 # Flask routes
+@app.route('/manual')
+def manual_page():
+    """Manual lead entry page"""
+    return render_template_string(MANUAL_TEMPLATE)
 
+@app.route('/scraping')
+def start_scraping():
+    """Start lead scraping process"""
+    try:
+        # Import and run scraping.py
+        import scraping
+        result = scraping.main()  # Assuming scraping.py has a main() function
+        return jsonify({
+            'status': 'success',
+            'message': 'Scraping completed successfully',
+            'data': result
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Scraping failed: {str(e)}'
+        })
 
 @app.route('/')
 def index():
