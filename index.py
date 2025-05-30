@@ -534,9 +534,10 @@ HTML_TEMPLATE = '''
                     onclick="return confirm('Are you sure you want to reset the entire campaign?');">
                 Reset Campaign
             </button>
+            <button type="button" onclick="window.location.href='/manual'">Manual Lead Entry</button>
+            <button type="button" onclick="startScraping()" id="scrapingBtn">Start Scraping</button>
         </form>
-        <button type="button" onclick="window.location.href='/manual'">Manual Lead Entry</button>
-        <button type="button" onclick="startScraping()" id="scrapingBtn">Start Scraping</button>
+        
 
         <div id="result"></div>
 
