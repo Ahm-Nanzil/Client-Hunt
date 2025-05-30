@@ -6,7 +6,7 @@ smtp_username = "ahmnanzil33@gmail.com"
 smtp_password = "hpitjdlzhhmnhurc"
 
 from_name = "Web Development"
-recipient_email = "ahmnanzil111@gmail.com"
+recipient_email = "ahmnanzilofficial@gmail.com"
 recipient_name = "Client"
 
 # Load email body
