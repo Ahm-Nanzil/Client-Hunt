@@ -556,26 +556,27 @@ HTML_TEMPLATE = '''
 
         <p class="back-link">Signed by Ahm Nanzil</p>
     </div>
-    function startScraping() {
-    const scrapingBtn = document.getElementById('scrapingBtn');
-    scrapingBtn.disabled = true;
-    scrapingBtn.textContent = 'Scraping...';
-    
-    fetch('/scraping')
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-            scrapingBtn.disabled = false;
-            scrapingBtn.textContent = 'Start Scraping';
-        })
-        .catch(error => {
-            alert('Scraping failed: ' + error);
-            scrapingBtn.disabled = false;
-            scrapingBtn.textContent = 'Start Scraping';
-        });
-}
 
     <script>
+            function startScraping() {
+            const scrapingBtn = document.getElementById('scrapingBtn');
+            scrapingBtn.disabled = true;
+            scrapingBtn.textContent = 'Scraping...';
+            
+            fetch('/scraping')
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    scrapingBtn.disabled = false;
+                    scrapingBtn.textContent = 'Start Scraping';
+                })
+                .catch(error => {
+                    alert('Scraping failed: ' + error);
+                    scrapingBtn.disabled = false;
+                    scrapingBtn.textContent = 'Start Scraping';
+                });
+        }
+    
         function updateProgress() {
             fetch('/progress')
                 .then(response => response.json())
