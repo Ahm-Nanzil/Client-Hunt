@@ -559,23 +559,30 @@ HTML_TEMPLATE = '''
 
     <script>
             function startScraping() {
-            const scrapingBtn = document.getElementById('scrapingBtn');
-            scrapingBtn.disabled = true;
-            scrapingBtn.textContent = 'Scraping...';
-            
-            fetch('/scraping')
-                .then(response => response.json())
-                .then(data => {
-                    alert(data.message);
-                    scrapingBtn.disabled = false;
-                    scrapingBtn.textContent = 'Start Scraping';
-                })
-                .catch(error => {
-                    alert('Scraping failed: ' + error);
-                    scrapingBtn.disabled = false;
-                    scrapingBtn.textContent = 'Start Scraping';
-                });
-        }
+                    const scrapingBtn = document.getElementById('scrapingBtn');
+                    scrapingBtn.disabled = true;
+                    scrapingBtn.textContent = 'Scraping...';
+                    
+                    fetch('/scraping')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert(`${data.message}\n\nDetails:\n- Total emails found: ${data.leads_scraped}\n- New leads added: ${data.new_leads_added}\n- Existing leads skipped: ${data.existing_leads_skipped}`);
+                            } else {
+                                alert('Scraping failed: ' + data.message);
+                            }
+                            scrapingBtn.disabled = false;
+                            scrapingBtn.textContent = 'Start Scraping';
+                            
+                            // Refresh the page to update statistics
+                            window.location.reload();
+                        })
+                        .catch(error => {
+                            alert('Scraping failed: ' + error);
+                            scrapingBtn.disabled = false;
+                            scrapingBtn.textContent = 'Start Scraping';
+                        });
+                }
     
         function updateProgress() {
             fetch('/progress')
