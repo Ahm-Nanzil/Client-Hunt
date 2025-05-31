@@ -544,9 +544,104 @@ HTML_TEMPLATE = '''
 
     <script>
         function startScraping() {
-    // Redirect to scraping options page instead of directly scraping
-    window.location.href = '/scrape_options';
+    // Show the scraping options modal
+    document.getElementById('scrapingModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('scrapingModal').style.display = 'none';
+    document.getElementById('modalContent').innerHTML = getOptionsHTML();
+}
+
+function showSingleQuery() {
+    document.getElementById('modalContent').innerHTML = getSingleQueryHTML();
+}
+
+function showMultipleQuery() {
+    document.getElementById('modalContent').innerHTML = getMultipleQueryHTML();
+}
+
+function getOptionsHTML() {
+    return `
+        <h2>Choose Scraping Method</h2>
+        <div class="modal-option" onclick="showSingleQuery()">
+            <h3>Single Query Scraping</h3>
+            <p>Scrape emails using one search query</p>
+        </div>
+        <div class="modal-option" onclick="showMultipleQuery()">
+            <h3>Multiple Query Scraping</h3>
+            <p>Scrape emails using multiple search queries</p>
+        </div>
+    `;
+}
+
+function getSingleQueryHTML() {
+    return `
+        <h2>Single Query Email Scraping</h2>
+        <form id="singleScrapeForm" onsubmit="processSingleScrape(event)">
+            <div class="form-group">
+                <label for="singleQuery">Search Query:</label>
+                <input type="text" id="singleQuery" name="query"
+                       value='site:instagram.com "fitness Coach" "@gmail.com"'
+                       placeholder="Enter your search query" required>
+            </div>
+            <button type="submit" class="btn">Start Scraping</button>
+            <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
+        </form>
+        <div id="scrapeResult" style="display: none;"></div>
+    `;
+}
+
+function getMultipleQueryHTML() {
+    return `
+        <h2>Multiple Query Email Scraping</h2>
+        <form id="multipleScrapeForm" onsubmit="processMultipleScrape(event)">
+            <div class="form-group">
+                <label for="multipleQueries">Search Queries (one per line):</label>
+                <textarea id="multipleQueries" rows="5" placeholder="Enter multiple queries, one per line" required></textarea>
+            </div>
+            <button type="submit" class="btn">Start Scraping</button>
+            <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
+        </form>
+        <div id="scrapeResult" style="display: none;"></div>
+    `;
+}
+
+function processSingleScrape(event) {
+    event.preventDefault();
+    const query = document.getElementById('singleQuery').value;
+    processScrape('single', [query]);
+}
+
+function processMultipleScrape(event) {
+    event.preventDefault();
+    const queries = document.getElementById('multipleQueries').value.split('\n').filter(q => q.trim());
+    processScrape('multiple', queries);
+}
+
+function processScrape(type, queries) {
+    const resultDiv = document.getElementById('scrapeResult');
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = '<div class="alert alert-info">Scraping in progress... This may take a few minutes.</div>';
+
+    fetch('/process_scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type, queries: queries })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+            updateProgress(); // Update the main page progress
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-error">${data.message}</div>`;
         }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+    });
+}
 
         function resetCampaign() {
             if (confirm('Are you sure you want to reset the entire campaign?')) {
