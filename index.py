@@ -582,11 +582,31 @@ HTML_TEMPLATE = '''
 
     <script>
         function startScraping() {
-    // Redirect to scraping options page instead of directly scraping
-    window.location.href = '/scrape_options';
+            // Redirect to scraping options page instead of directly scraping
+            window.location.href = '/scrape_options';
         }
         function showModal() {
-            document.getElementById('myModal').style.display = 'block';
+            // Load scrape_options.html content into modal
+            fetch('/scrape_options_modal')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('modal-body').innerHTML = html;
+                    document.getElementById('myModal').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error loading modal content:', error);
+                });
+        }
+        
+        function loadModalContent(url) {
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('modal-body').innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading content:', error);
+                });
         }
         
         function closeModal() {
