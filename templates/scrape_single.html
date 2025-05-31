@@ -18,7 +18,7 @@
 <body>
     <h1>Single Query Email Scraping</h1>
 
-    <form id="singleScrapeForm">
+    <form id="scrapeForm">
         <div class="form-group">
             <label for="query">Search Query:</label>
             <input type="text" id="query" name="query"
@@ -32,7 +32,7 @@
     <div id="result" style="display: none;"></div>
 
     <script>
-        document.getElementById('singleScrapeForm').addEventListener('submit', function(e) {
+        document.getElementById('scrapeForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
             const query = document.getElementById('query').value;
