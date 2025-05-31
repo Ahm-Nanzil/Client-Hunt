@@ -5,26 +5,15 @@ import re
 from pathlib import Path
 
 
-def get_chrome_user_data_dir():
-    home = Path.home()
-    if os.name == "nt":
-        return os.path.join(home, "AppData", "Local", "Google", "Chrome", "User Data")
-    elif os.name == "posix":
-        if os.path.exists(os.path.join(home, "Library", "Application Support", "Google", "Chrome")):
-            return os.path.join(home, "Library", "Application Support", "Google", "Chrome")
-        else:
-            return os.path.join(home, ".config", "google-chrome")
-    return None
-
-
 def google_search_extract_emails(search_query="site:instagram.com \"Football Coach\" \"@gmail.com\""):
-    chrome_path = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-    user_data_dir = get_chrome_user_data_dir()
-    profile_path = os.path.join(user_data_dir, "Default")
+    # Use your specific Chrome paths and profile
+    chrome_path = r"C:\Users\ASUS\Downloads\chrome-win64\chrome-win64\chrome.exe"
+    user_data_dir = r"C:\Users\ASUS\AppData\Local\Google\Chrome for Testing\User Data"
+    profile_path = "Profile 3"
 
     print(f"Starting Google search for: {search_query}")
     print(f"Using Chrome at: {chrome_path}")
-    print(f"Using profile at: {profile_path}")
+    print(f"Using profile: {profile_path} in {user_data_dir}")
 
     timestamp = int(time.time())
     filename = f"google_gmail_emails_{timestamp}.txt"
@@ -33,7 +22,7 @@ def google_search_extract_emails(search_query="site:instagram.com \"Football Coa
         try:
             browser_type = p.chromium
             browser = browser_type.launch_persistent_context(
-                user_data_dir=profile_path,
+                user_data_dir=os.path.join(user_data_dir, profile_path),
                 executable_path=chrome_path,
                 headless=False,
                 args=["--disable-blink-features=AutomationControlled"]
