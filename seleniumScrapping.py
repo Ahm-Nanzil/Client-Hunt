@@ -6,8 +6,58 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import time
 import re
 import os
+import csv
+import pandas as pd
+from pathlib import Path
 
-def search_and_save(search_query='site:instagram.com "fitness Coach" "@gmail.com"'):
+
+def load_existing_emails(csv_file="clients.csv"):
+    """Load existing emails from clients.csv"""
+    existing_emails = set()
+    if os.path.exists(csv_file):
+        try:
+            df = pd.read_csv(csv_file)
+            if 'email' in df.columns:
+                existing_emails = set(df['email'].dropna().str.lower())
+            print(f"Loaded {len(existing_emails)} existing emails from {csv_file}")
+        except Exception as e:
+            print(f"Error reading {csv_file}: {e}")
+    else:
+        print(f"{csv_file} not found. Will create new file.")
+    return existing_emails
+
+
+def save_new_emails_to_csv(new_emails, csv_file="clients.csv"):
+    """Save new emails to clients.csv"""
+    if not new_emails:
+        print("No new emails to save.")
+        return
+
+    # Check if file exists
+    file_exists = os.path.exists(csv_file)
+
+    # Prepare data
+    new_data = [{'email': email} for email in new_emails]
+
+    if file_exists:
+        # Append to existing file
+        existing_df = pd.read_csv(csv_file)
+        new_df = pd.DataFrame(new_data)
+        combined_df = pd.concat([existing_df, new_df], ignore_index=True)
+        combined_df.to_csv(csv_file, index=False)
+    else:
+        # Create new file
+        new_df = pd.DataFrame(new_data)
+        new_df.to_csv(csv_file, index=False)
+
+    print(f"Added {len(new_emails)} new emails to {csv_file}")
+
+
+def search_and_save(search_query, existing_emails=None):
+    """Main scraping function"""
+    if existing_emails is None:
+        existing_emails = set()
+
     # Chrome options with your profile
     options = Options()
     options.binary_location = r"C:\Users\ASUS\Downloads\chrome-win64\chrome-win64\chrome.exe"
@@ -40,8 +90,8 @@ def search_and_save(search_query='site:instagram.com "fitness Coach" "@gmail.com
             try:
                 # Check for recaptcha iframe or texts indicating CAPTCHA
                 if driver.find_elements(By.CSS_SELECTOR, "iframe[src*='recaptcha']") or \
-                   driver.find_elements(By.XPATH, "//*[contains(text(),'Select all images')]") or \
-                   driver.find_elements(By.XPATH, "//*[contains(text(),\"I'm not a robot\")]"):
+                        driver.find_elements(By.XPATH, "//*[contains(text(),'Select all images')]") or \
+                        driver.find_elements(By.XPATH, "//*[contains(text(),\"I'm not a robot\")]"):
                     captcha_present = True
             except Exception:
                 captcha_present = False
@@ -70,9 +120,15 @@ def search_and_save(search_query='site:instagram.com "fitness Coach" "@gmail.com
             page_text = driver.find_element(By.TAG_NAME, "body").text
             emails = re.findall(r'[a-zA-Z0-9_.+-]+@gmail\.com', page_text)
             found_count = len(emails)
-            unique_emails = set(emails)
+            unique_emails = set(email.lower() for email in emails)
+
+            # Filter out existing emails
+            new_emails = unique_emails - existing_emails
+
             print(f"Found {found_count} Gmail addresses ({len(unique_emails)} unique) on this page")
-            all_emails.update(unique_emails)
+            print(f"New emails (not in clients.csv): {len(new_emails)}")
+
+            all_emails.update(new_emails)
 
             # Find next page button
             try:
@@ -92,28 +148,114 @@ def search_and_save(search_query='site:instagram.com "fitness Coach" "@gmail.com
                 print("No next page button found. Ending search.")
                 break
 
-        # Save to file
+        # Save to temporary file first
         timestamp = int(time.time())
-        filename = f"google_gmail_emails_{timestamp}.txt"
-        with open(filename, "w", encoding="utf-8") as f:
+        temp_filename = f"temp_gmail_emails_{timestamp}.txt"
+        with open(temp_filename, "w", encoding="utf-8") as f:
             f.write(f"Search Query: {search_query}\n")
             f.write(f"Extraction Time: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write("="*50 + "\n\n")
+            f.write("=" * 50 + "\n\n")
             for email in sorted(all_emails):
                 f.write(email + "\n")
 
-        print(f"\nExtraction complete. Found {len(all_emails)} unique Gmail addresses.")
-        print(f"Saved to file: {os.path.abspath(filename)}")
+        print(f"\nExtraction complete. Found {len(all_emails)} new Gmail addresses.")
+        print(f"Temporary file created: {os.path.abspath(temp_filename)}")
 
-        return filename
+        return all_emails, temp_filename
 
     except Exception as e:
         print(f"Error occurred: {str(e)}")
-        return None
+        return set(), None
 
     finally:
         driver.quit()
 
+
+def process_single_query(query):
+    """Process a single search query"""
+    print(f"Processing single query: {query}")
+
+    # Load existing emails
+    existing_emails = load_existing_emails()
+
+    # Scrape new emails
+    new_emails, temp_file = search_and_save(query, existing_emails)
+
+    if new_emails:
+        # Save new emails to clients.csv
+        save_new_emails_to_csv(new_emails)
+
+        # Delete temporary file
+        if temp_file and os.path.exists(temp_file):
+            os.remove(temp_file)
+            print(f"Deleted temporary file: {temp_file}")
+
+    return len(new_emails)
+
+
+def process_multiple_queries(queries):
+    """Process multiple search queries"""
+    print(f"Processing {len(queries)} queries...")
+
+    total_new_emails = 0
+    all_new_emails = set()
+
+    # Load existing emails once
+    existing_emails = load_existing_emails()
+
+    for i, query in enumerate(queries, 1):
+        print(f"\n--- Processing Query {i}/{len(queries)} ---")
+        print(f"Query: {query}")
+
+        # Scrape new emails
+        new_emails, temp_file = search_and_save(query, existing_emails | all_new_emails)
+
+        if new_emails:
+            all_new_emails.update(new_emails)
+            total_new_emails += len(new_emails)
+
+            # Delete temporary file
+            if temp_file and os.path.exists(temp_file):
+                os.remove(temp_file)
+                print(f"Deleted temporary file: {temp_file}")
+
+        # Add delay between queries to avoid being blocked
+        if i < len(queries):
+            print("Waiting 10 seconds before next query...")
+            time.sleep(10)
+
+    # Save all new emails to clients.csv at once
+    if all_new_emails:
+        save_new_emails_to_csv(all_new_emails)
+
+    print(f"\n=== SUMMARY ===")
+    print(f"Total queries processed: {len(queries)}")
+    print(f"Total new emails found: {total_new_emails}")
+
+    return total_new_emails
+
+
+def scrape_emails(query_type, queries):
+    """Main function to be called from Flask"""
+    try:
+        if query_type == "single":
+            if isinstance(queries, list) and len(queries) > 0:
+                return process_single_query(queries[0])
+            else:
+                return process_single_query(queries)
+        elif query_type == "multiple":
+            if isinstance(queries, str):
+                queries = [queries]
+            return process_multiple_queries(queries)
+        else:
+            raise ValueError("Invalid query_type. Use 'single' or 'multiple'")
+    except Exception as e:
+        print(f"Error in scrape_emails: {e}")
+        return 0
+
+
 if __name__ == "__main__":
+    # Test with single query
     query = 'site:instagram.com "fitness Coach" "@gmail.com"'
-    search_and_save(query)
+    result = scrape_emails("single", query)
+    print(f"Found {result} new emails")

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Email Campaign Manager - Python Version
-Converted from PHP to Python with Flask web framework
+Email Campaign Manager - Fixed Scraping Version
 """
 
 import csv
@@ -10,12 +9,13 @@ import os
 import time
 import smtplib
 import logging
+import subprocess
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 import re
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, redirect, url_for
 import threading
 import gc
 
@@ -24,6 +24,7 @@ BATCH_SIZE = 1
 CSV_FILE = 'clients.csv'
 TRACKING_FILE = 'email_tracking.json'
 EMAIL_TEMPLATE = 'emailbody.html'
+SCRAPING_SCRIPT = 'seleniumScrapping.py'
 
 # Flask app setup
 app = Flask(__name__)
@@ -50,7 +51,6 @@ class EmailCampaignManager:
         self.sender_email = 'ahmnanzil@web.service'
 
     def initialize_tracking_data(self):
-        """Initialize or load tracking data from JSON file"""
         if os.path.exists(self.tracking_file):
             try:
                 with open(self.tracking_file, 'r') as f:
@@ -60,7 +60,6 @@ class EmailCampaignManager:
             except (json.JSONDecodeError, IOError):
                 pass
 
-        # Create default tracking data
         default_data = {
             'current_index': 0,
             'total_processed': 0,
@@ -69,25 +68,19 @@ class EmailCampaignManager:
             'current_batch_progress': 0
         }
 
-        # Ensure directory exists
         os.makedirs(os.path.dirname(self.tracking_file) if os.path.dirname(self.tracking_file) else '.', exist_ok=True)
-
-        # Save default data
         self.save_tracking_data(default_data)
         return default_data
 
     def save_tracking_data(self, data):
-        """Save tracking data to JSON file"""
         with open(self.tracking_file, 'w') as f:
             json.dump(data, f, indent=2)
 
     def validate_email(self, email):
-        """Validate email format"""
         pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
         return re.match(pattern, email) is not None
 
     def get_clients_from_csv(self, start_index, batch_size):
-        """Read clients from CSV file starting from specific index"""
         clients = []
         count = 0
         current_index = 0
@@ -95,29 +88,23 @@ class EmailCampaignManager:
         try:
             with open(self.csv_file, 'r', newline='', encoding='utf-8') as csvfile:
                 reader = csv.reader(csvfile)
-
-                # Skip header row
                 next(reader, None)
 
                 for row in reader:
-                    # Skip rows until we reach starting index
                     if current_index < start_index:
                         current_index += 1
                         continue
 
-                    # Extract client data with safe indexing
                     email = row[0].strip() if len(row) > 0 else ''
                     name = row[1].strip() if len(row) > 1 else ''
                     address = row[2].strip() if len(row) > 2 else ''
                     customer_number = row[3].strip() if len(row) > 3 else ''
                     sent_status = row[4].strip() if len(row) > 4 else 'No'
 
-                    # Validate email
                     if not self.validate_email(email):
                         current_index += 1
                         continue
 
-                    # Only include clients that haven't been sent
                     if sent_status.lower() != 'yes':
                         clients.append({
                             'email': email,
@@ -140,11 +127,10 @@ class EmailCampaignManager:
         return {
             'clients': clients,
             'last_index': current_index,
-            'total_rows': self.count_total_rows() - 1  # Subtract header
+            'total_rows': self.count_total_rows() - 1
         }
 
     def count_total_rows(self):
-        """Count total rows in CSV file"""
         try:
             with open(self.csv_file, 'r', newline='', encoding='utf-8') as csvfile:
                 return sum(1 for _ in csv.reader(csvfile))
@@ -152,16 +138,12 @@ class EmailCampaignManager:
             return 0
 
     def mark_clients_as_sent(self, clients):
-        """Mark clients as sent in CSV file"""
-        # Process in chunks to avoid memory issues
         chunk_size = 50
         for i in range(0, len(clients), chunk_size):
             chunk = clients[i:i + chunk_size]
             self.mark_client_chunk_as_sent(chunk)
 
     def mark_client_chunk_as_sent(self, client_chunk):
-        """Process a chunk of clients and mark as sent"""
-        # Read entire CSV file
         rows = []
         try:
             with open(self.csv_file, 'r', newline='', encoding='utf-8') as csvfile:
@@ -171,22 +153,18 @@ class EmailCampaignManager:
             logger.error(f"CSV file {self.csv_file} not found")
             return
 
-        # Update sent status for processed clients
         for client in client_chunk:
-            row_index = client['row_index'] + 1  # +1 because header is row 0
+            row_index = client['row_index'] + 1
             if row_index < len(rows):
-                # Ensure row has at least 5 columns
                 while len(rows[row_index]) < 5:
                     rows[row_index].append("")
-                rows[row_index][4] = "Yes"  # Mark as sent
+                rows[row_index][4] = "Yes"
 
-        # Write updated data back to CSV
         with open(self.csv_file, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(rows)
 
     def reset_all_clients(self):
-        """Reset all clients as unsent"""
         rows = []
         try:
             with open(self.csv_file, 'r', newline='', encoding='utf-8') as csvfile:
@@ -196,20 +174,16 @@ class EmailCampaignManager:
             logger.error(f"CSV file {self.csv_file} not found")
             return
 
-        # Reset sent status for all rows except header
         for i in range(1, len(rows)):
-            # Ensure row has at least 5 columns
             while len(rows[i]) < 5:
                 rows[i].append("")
-            rows[i][4] = "No"  # Reset sent status
+            rows[i][4] = "No"
 
-        # Write updated data back to CSV
         with open(self.csv_file, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(rows)
 
     def send_emails(self, clients):
-        """Send emails to clients using SMTP"""
         try:
             with open(self.email_template, 'r', encoding='utf-8') as f:
                 email_content = f.read()
@@ -222,28 +196,22 @@ class EmailCampaignManager:
         tracking = self.initialize_tracking_data()
         chunk_size = 20
 
-        # Process clients in chunks
         for i in range(0, len(clients), chunk_size):
             client_chunk = clients[i:i + chunk_size]
 
-            # Update progress
             tracking['current_batch_progress'] = sent_count
             self.save_tracking_data(tracking)
 
-            # Send emails for this chunk
             for client in client_chunk:
                 try:
-                    # Create message
                     msg = MIMEMultipart('alternative')
                     msg['Subject'] = "Boost Your Online Presence with a Professional Website 🌐"
                     msg['From'] = formataddr((self.sender_name, self.sender_email))
                     msg['To'] = formataddr((client['name'], client['email']))
 
-                    # Add HTML content
                     html_part = MIMEText(email_content, 'html', 'utf-8')
                     msg.attach(html_part)
 
-                    # Send email
                     with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                         server.starttls()
                         server.login(self.email_user, self.email_password)
@@ -251,23 +219,17 @@ class EmailCampaignManager:
 
                     sent_count += 1
                     logger.info(f"Email sent successfully to: {client['email']}")
-
-                    # Small delay between emails
                     time.sleep(0.1)
 
                 except Exception as e:
                     failed_count += 1
                     logger.error(f"Failed to send email to {client['email']}: {str(e)}")
 
-                # Update progress periodically
                 if sent_count % 10 == 0:
                     tracking['current_batch_progress'] = sent_count
                     self.save_tracking_data(tracking)
 
-            # Mark chunk as sent
             self.mark_clients_as_sent(client_chunk)
-
-            # Cleanup and pause
             gc.collect()
             time.sleep(1)
 
@@ -278,21 +240,16 @@ class EmailCampaignManager:
         }
 
     def process_emails(self):
-        """Main function to process and send emails"""
-        # Initialize tracking
         tracking = self.initialize_tracking_data()
         tracking['current_batch_progress'] = 0
         self.save_tracking_data(tracking)
 
-        # Get clients for current batch
         result = self.get_clients_from_csv(tracking['current_index'], self.batch_size)
         clients = result['clients']
         total_rows = result['total_rows']
 
-        # Check if no clients to process
         if not clients:
             if tracking['total_processed'] >= total_rows or tracking['all_sent']:
-                # Reset everything
                 self.reset_all_clients()
                 tracking.update({
                     'current_index': 0,
@@ -306,7 +263,6 @@ class EmailCampaignManager:
                     'message': 'All clients have been processed. Starting over from the beginning.'
                 }
             else:
-                # Move to next batch
                 tracking['current_index'] = result['last_index']
                 self.save_tracking_data(tracking)
                 return {
@@ -314,12 +270,10 @@ class EmailCampaignManager:
                     'message': 'No new clients to process at this position. Moving to next batch.'
                 }
 
-        # Send emails
         email_result = self.send_emails(clients)
         sent_count = email_result['sent']
         failed_count = email_result['failed']
 
-        # Update tracking
         tracking.update({
             'current_index': result['last_index'],
             'total_processed': tracking['total_processed'] + sent_count,
@@ -342,7 +296,6 @@ class EmailCampaignManager:
         }
 
     def get_current_progress(self):
-        """Get current progress for AJAX calls"""
         tracking = self.initialize_tracking_data()
         total_rows = self.count_total_rows() - 1
 
@@ -354,12 +307,67 @@ class EmailCampaignManager:
             'progress_percentage': round((tracking['total_processed'] / max(1, total_rows)) * 100, 1)
         }
 
+    def run_scraping_with_queries(self, scrape_type, queries):
+        """Run scraping with specific queries"""
+        try:
+            if not os.path.exists(SCRAPING_SCRIPT):
+                return {
+                    'status': 'error',
+                    'message': f'Scraping script {SCRAPING_SCRIPT} not found in directory'
+                }
 
-# Initialize campaign manager
+            # Prepare arguments for the scraping script
+            if scrape_type == 'single':
+                args = ['python', SCRAPING_SCRIPT, '--single', queries[0]]
+            else:  # multiple
+                # Create a temporary file with queries
+                temp_queries_file = 'temp_queries.txt'
+                with open(temp_queries_file, 'w', encoding='utf-8') as f:
+                    for query in queries:
+                        f.write(query.strip() + '\n')
+
+                args = ['python', SCRAPING_SCRIPT, '--multiple', temp_queries_file]
+
+            # Run the scraping script
+            result = subprocess.run(args, capture_output=True, text=True, timeout=600)
+
+            # Clean up temporary file if created
+            if scrape_type == 'multiple' and os.path.exists('temp_queries.txt'):
+                os.remove('temp_queries.txt')
+
+            if result.returncode == 0:
+                # Count new emails added
+                output_lines = result.stdout.strip().split('\n')
+                emails_found = len([line for line in output_lines if '@' in line and 'Found' in line])
+
+                return {
+                    'status': 'success',
+                    'message': f'Scraping completed! Processed {len(queries)} queries.',
+                    'emails_found': emails_found,
+                    'output': result.stdout
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': f'Scraping failed: {result.stderr}'
+                }
+
+        except subprocess.TimeoutExpired:
+            return {
+                'status': 'error',
+                'message': 'Scraping timeout (10 minutes exceeded)'
+            }
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Scraping error: {str(e)}'
+            }
+
+
 campaign_manager = EmailCampaignManager()
 
-# HTML template for the web interface
-HTML_TEMPLATE = '''
+# Main Dashboard HTML Template
+MAIN_HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -381,9 +389,7 @@ HTML_TEMPLATE = '''
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        h1, h2 {
-            color: #333;
-        }
+        h1, h2 { color: #333; }
         .stats {
             margin: 20px 0;
             padding: 15px;
@@ -426,15 +432,15 @@ HTML_TEMPLATE = '''
             font-size: 16px;
             margin-right: 10px;
         }
-        button:hover {
-            background-color: #45a049;
-        }
+        button:hover { background-color: #45a049; }
         button.reset {
             background-color: #f44336;
         }
-        button.reset:hover {
-            background-color: #d32f2f;
+        button.reset:hover { background-color: #d32f2f; }
+        button.scraping {
+            background-color: #ff9800;
         }
+        button.scraping:hover { background-color: #e68900; }
         .alert {
             padding: 15px;
             margin-bottom: 20px;
@@ -455,6 +461,11 @@ HTML_TEMPLATE = '''
             color: #31708f;
             border: 1px solid #bce8f1;
         }
+        .alert-error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
         #result {
             margin-top: 20px;
             padding: 15px;
@@ -467,11 +478,6 @@ HTML_TEMPLATE = '''
             padding: 15px;
             background-color: #f0f0f0;
             border-radius: 4px;
-        }
-        .back-link {
-            display: block;
-            margin-top: 20px;
-            text-align: center;
         }
         #sending-status {
             display: none;
@@ -530,14 +536,9 @@ HTML_TEMPLATE = '''
 
         <form id="emailForm">
             <button type="submit" id="sendBatch">Send Next Batch ({{ batch_size }} emails)</button>
-            <button type="button" onclick="window.location.href='/reset'" class="reset" 
-                    onclick="return confirm('Are you sure you want to reset the entire campaign?');">
-                Reset Campaign
-            </button>
-            <button type="button" onclick="window.location.href='/manual'">Manual Lead Entry</button>
-            <button type="button" onclick="startScraping()" id="scrapingBtn">Start Scraping</button>
+            <button type="button" onclick="resetCampaign()" class="reset">Reset Campaign</button>
+            <button type="button" onclick="window.location.href='/scrape_options'" class="scraping">Start Scraping</button>
         </form>
-        
 
         <div id="result"></div>
 
@@ -554,36 +555,29 @@ HTML_TEMPLATE = '''
             <p><strong>Note:</strong> The system will automatically update the "Sent" column as emails are processed.</p>
         </div>
 
-        <p class="back-link">Signed by Ahm Nanzil</p>
+        <p style="text-align: center; margin-top: 20px;">Signed by Ahm Nanzil</p>
     </div>
 
     <script>
-            function startScraping() {
-                    const scrapingBtn = document.getElementById('scrapingBtn');
-                    scrapingBtn.disabled = true;
-                    scrapingBtn.textContent = 'Scraping...';
-                    
-                    fetch('/scraping')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                alert(`${data.message}\n\nDetails:\n- Total emails found: ${data.leads_scraped}\n- New leads added: ${data.new_leads_added}\n- Existing leads skipped: ${data.existing_leads_skipped}`);
-                            } else {
-                                alert('Scraping failed: ' + data.message);
-                            }
-                            scrapingBtn.disabled = false;
-                            scrapingBtn.textContent = 'Start Scraping';
-                            
-                            // Refresh the page to update statistics
-                            window.location.reload();
-                        })
-                        .catch(error => {
-                            alert('Scraping failed: ' + error);
-                            scrapingBtn.disabled = false;
-                            scrapingBtn.textContent = 'Start Scraping';
-                        });
-                }
-    
+        function resetCampaign() {
+            if (confirm('Are you sure you want to reset the entire campaign?')) {
+                fetch('/reset')
+                    .then(response => response.json())
+                    .then(data => {
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <h3>Campaign Reset</h3>
+                                <p>${data.message}</p>
+                            </div>
+                        `;
+                        updateProgress();
+                        setTimeout(() => window.location.reload(), 2000);
+                    });
+            }
+        }
+
         function updateProgress() {
             fetch('/progress')
                 .then(response => response.json())
@@ -662,140 +656,149 @@ HTML_TEMPLATE = '''
 </body>
 </html>
 '''
-MANUAL_TEMPLATE = '''
+
+# Scraping Options Template
+SCRAPE_OPTIONS_TEMPLATE = '''
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manual Lead Entry</title>
-    <!-- Add same CSS styles as main template -->
+    <title>Email Scraping Options</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .option-card { 
+            border: 1px solid #ddd; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+            background-color: #f9f9f9;
+        }
+        .btn { 
+            padding: 15px 30px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            display: inline-block; 
+            margin: 10px; 
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-back {
+            background: #6c757d;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+        }
+        .btn-back:hover { background: #545b62; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Manual Lead Entry</h1>
-        <form id="manualForm">
-            <input type="email" placeholder="Email" required>
-            <input type="text" placeholder="Name" required>
-            <input type="text" placeholder="Address">
-            <input type="text" placeholder="Customer Number">
-            <button type="submit">Add Lead</button>
-        </form>
-        <a href="/">Back to Dashboard</a>
+        <a href="/" class="btn btn-back">← Back to Dashboard</a>
+
+        <h1>Email Scraping Options</h1>
+
+        <div class="option-card">
+            <h3>Single Query</h3>
+            <p>Scrape emails using one search query at a time. Perfect for testing or targeting specific searches.</p>
+            <a href="/scrape_single" class="btn">Single Query</a>
+        </div>
+
+        <div class="option-card">
+            <h3>Multiple Queries</h3>
+            <p>Scrape emails using multiple search queries in sequence. Ideal for bulk scraping with different search terms.</p>
+            <a href="/scrape_multiple" class="btn">Multiple Queries</a>
+        </div>
     </div>
 </body>
 </html>
 '''
 
-# Flask routes
-@app.route('/manual')
-def manual_page():
-    """Manual lead entry page"""
-    return render_template_string(MANUAL_TEMPLATE)
+# Single Query Scraping Template
+SCRAPE_SINGLE_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Single Query Scraping</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 10px; font-weight: bold; }
+        input[type="text"] { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            box-sizing: border-box;
+        }
+        .btn { 
+            padding: 15px 30px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-back {
+            background: #6c757d;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-back:hover { background: #545b62; }
+        .result { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .example { 
+            background: #e9ecef; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin-top: 10px; 
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/scrape_options" class="btn btn-back">← Back to Scraping Options</a>
 
-@app.route('/scraping')
-def start_scraping():
-    """Start lead scraping process"""
-    try:
-        # Import and run scraping.py
-        import scraping
-        result = scraping.main()  # Assuming scraping.py has a main() function
-        return jsonify({
-            'status': 'success',
-            'message': 'Scraping completed successfully',
-            'data': result
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Scraping failed: {str(e)}'
-        })
+        <h1>Single Query Email Scraping</h1>
 
-@app.route('/')
-def index():
-    """Main dashboard page"""
-    tracking = campaign_manager.initialize_tracking_data()
-    total_rows = campaign_manager.count_total_rows() - 1
+        <form id="scrapeForm">
+            <div class="form-group">
+                <label for="query">Search Query:</label>
+                <input type="text" id="query" name="query" 
+                       value='site:instagram.com "fitness Coach" "@gmail.com"' 
+                       placeholder="Enter your search query">
+                <div class="example">
+                    Example: site:instagram.com "fitness Coach" "@gmail.com"<br>
+                    This will search Instagram for fitness coaches with Gmail addresses.
+                </div>
+            </div>
 
-    overall_progress = round((tracking['total_processed'] / max(1, total_rows)) * 100, 1)
-    batch_progress = round((tracking['current_batch_progress'] / max(1, BATCH_SIZE)) * 100, 1)
-
-    return render_template_string(HTML_TEMPLATE,
-                                  total_clients=total_rows,
-                                  batch_size=BATCH_SIZE,
-                                  emails_sent=tracking['total_processed'],
-                                  next_batch_start=tracking['current_index'],
-                                  last_batch_time=tracking['last_batch_time'] or 'Never',
-                                  overall_progress=overall_progress,
-                                  batch_progress=batch_progress
-                                  )
-
-
-@app.route('/progress')
-def get_progress():
-    """Get current progress via AJAX"""
-    return jsonify(campaign_manager.get_current_progress())
-
-
-@app.route('/send', methods=['POST'])
-def send_emails():
-    """Process and send email batch"""
-
-    def send_in_background():
-        return campaign_manager.process_emails()
-
-    # Run email sending in background thread for better responsiveness
-    result = send_in_background()
-    return jsonify(result)
-
-
-@app.route('/reset')
-def reset_campaign():
-    """Reset the entire campaign"""
-    campaign_manager.reset_all_clients()
-    tracking = campaign_manager.initialize_tracking_data()
-    tracking.update({
-        'current_index': 0,
-        'total_processed': 0,
-        'all_sent': False,
-        'current_batch_progress': 0
-    })
-    campaign_manager.save_tracking_data(tracking)
-
-    return jsonify({
-        'status': 'success',
-        'message': 'Campaign has been reset successfully'
-    })
-
-
-if __name__ == '__main__':
-    # Create required files if they don't exist
-    if not os.path.exists(CSV_FILE):
-        # Create sample CSV file
-        with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(['Email', 'Customer Name', 'Address', 'Customer Number', 'Sent'])
-            writer.writerow(['example@email.com', 'John Doe', '123 Main St', 'CUST001', 'No'])
-
-    if not os.path.exists(EMAIL_TEMPLATE):
-        # Create sample email template
-        with open(EMAIL_TEMPLATE, 'w', encoding='utf-8') as f:
-            f.write('''
-            <html>
-            <body>
-                <h1>Professional Website Services</h1>
-                <p>Dear Valued Customer,</p>
-                <p>Boost your online presence with a professional website!</p>
-                <p>Best regards,<br>Web Development Team</p>
-            </body>
-            </html>
-            ''')
-
-    print("Email Campaign Manager is starting...")
-    print("Access the web interface at: http://localhost:5000")
-    print("\nMake sure to:")
-    print("1. Update your email credentials in the script")
-    print("2. Place your clients.csv file in the same directory")
-    print("3. Create your emailbody.html template")
-
-    app.run(debug=True, host='0.0.0.0', port=5000)
+            <button type="submit" class="btn
