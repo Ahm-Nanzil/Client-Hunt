@@ -544,50 +544,8 @@ HTML_TEMPLATE = '''
 
     <script>
         function startScraping() {
-            const scrapingBtn = document.getElementById('scrapingBtn');
-            const originalText = scrapingBtn.textContent;
-            scrapingBtn.disabled = true;
-            scrapingBtn.textContent = 'Scraping...';
-
-            fetch('/scraping')
-                .then(response => response.json())
-                .then(data => {
-                    const resultDiv = document.getElementById('result');
-                    resultDiv.style.display = 'block';
-
-                    if (data.status === 'success') {
-                        resultDiv.innerHTML = `
-                            <div class="alert alert-success">
-                                <h3>Scraping Completed Successfully</h3>
-                                <p>Leads scraped: ${data.leads_scraped || 'N/A'}</p>
-                                <p>Script output available in console</p>
-                            </div>
-                        `;
-                        console.log('Scraping output:', data.output);
-                    } else {
-                        resultDiv.innerHTML = `
-                            <div class="alert alert-error">
-                                <h3>Scraping Failed</h3>
-                                <p>${data.message}</p>
-                            </div>
-                        `;
-                    }
-
-                    scrapingBtn.disabled = false;
-                    scrapingBtn.textContent = originalText;
-                    updateProgress();
-                })
-                .catch(error => {
-                    document.getElementById('result').innerHTML = `
-                        <div class="alert alert-error">
-                            <h3>Scraping Error</h3>
-                            <p>${error}</p>
-                        </div>
-                    `;
-                    document.getElementById('result').style.display = 'block';
-                    scrapingBtn.disabled = false;
-                    scrapingBtn.textContent = originalText;
-                });
+    // Redirect to scraping options page instead of directly scraping
+    window.location.href = '/scrape_options';
         }
 
         function resetCampaign() {
