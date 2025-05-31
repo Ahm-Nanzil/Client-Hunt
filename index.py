@@ -804,6 +804,20 @@ def process_scrape():
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
 
+@app.route('/scrape_options_modal')
+def scrape_options_modal():
+    """Route to return scrape_options.html content for modal"""
+    return render_template('scrape_options.html')
+
+@app.route('/scrape_single_modal')
+def scrape_single_modal():
+    """Route to return scrape_single.html content for modal"""
+    return render_template('scrape_single.html')
+
+@app.route('/scrape_multiple_modal')
+def scrape_multiple_modal():
+    """Route to return scrape_multiple.html content for modal"""
+    return render_template('scrape_multiple.html')
 
 if __name__ == '__main__':
     if not os.path.exists(CSV_FILE):
