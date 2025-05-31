@@ -1,9 +1,27 @@
-<h2>Choose Scraping Method</h2>
-<div class="modal-option" onclick="showSingleQuery()">
-    <h3>Single Query Scraping</h3>
-    <p>Scrape emails using one search query</p>
-</div>
-<div class="modal-option" onclick="showMultipleQuery()">
-    <h3>Multiple Query Scraping</h3>
-    <p>Scrape emails using multiple search queries</p>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Email Scraping Options</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .option-card { border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .btn { padding: 15px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px; }
+        .btn:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Email Scraping Options</h1>
+
+    <div class="option-card">
+        <h3>Single Query</h3>
+        <p>Scrape emails using one search query at a time.</p>
+        <a href="/scrape_single" class="btn">Single Query</a>
+    </div>
+
+    <div class="option-card">
+        <h3>Multiple Queries</h3>
+        <p>Scrape emails using multiple search queries in sequence.</p>
+        <a href="/scrape_multiple" class="btn">Multiple Queries</a>
+    </div>
+</body>
+</html>
