@@ -9,6 +9,7 @@ import os
 import csv
 import pandas as pd
 from pathlib import Path
+from seleniumScrapping import scrape_emails
 
 
 def load_existing_emails(csv_file="clients.csv"):
