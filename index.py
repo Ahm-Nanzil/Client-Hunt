@@ -18,7 +18,6 @@ import re
 from flask import Flask, request, jsonify, render_template_string
 import threading
 import gc
-import subprocess
 
 # Configuration
 BATCH_SIZE = 1
@@ -536,25 +535,9 @@ HTML_TEMPLATE = '''
                 Reset Campaign
             </button>
             <button type="button" onclick="window.location.href='/manual'">Manual Lead Entry</button>
-        <button type="button" id="startScrapingBtn">Start Scraping</button>
+            <button type="button" onclick="startScraping()" id="scrapingBtn">Start Scraping</button>
         </form>
-
-        <script>
-        document.getElementById('startScrapingBtn').addEventListener('click', () => {
-            fetch('/start-scraping', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert('Scraping started successfully!');
-                        console.log(data.output);
-                    } else {
-                        alert('Error: ' + data.message);
-                    }
-                })
-                .catch(err => alert('Request failed: ' + err));
-        });
-        </script>
-
+        
 
         <div id="result"></div>
 
@@ -710,16 +693,23 @@ def manual_page():
     """Manual lead entry page"""
     return render_template_string(MANUAL_TEMPLATE)
 
-@app.route('/start-scraping', methods=['POST'])
+@app.route('/scraping')
 def start_scraping():
+    """Start lead scraping process"""
     try:
-        # Run scrapping.py script as a subprocess
-        result = subprocess.run(['python', 'scraping.py'], capture_output=True, text=True)
-        # You can return output or status
-        return jsonify({'status': 'success', 'output': result.stdout})
+        # Import and run scraping.py
+        import scraping
+        result = scraping.main()  # Assuming scraping.py has a main() function
+        return jsonify({
+            'status': 'success',
+            'message': 'Scraping completed successfully',
+            'data': result
+        })
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
+        return jsonify({
+            'status': 'error',
+            'message': f'Scraping failed: {str(e)}'
+        })
 
 @app.route('/')
 def index():
