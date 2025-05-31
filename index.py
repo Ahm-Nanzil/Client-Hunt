@@ -735,7 +735,10 @@ def reset_campaign():
         'message': 'Campaign has been reset successfully'
     })
 
-
+@app.route('/scraping')
+def scraping():
+    result = campaign_manager.run_scraping()
+    return jsonify(result)
 @app.route('/scrape_options')
 def scrape_options():
     """Route to show scraping options"""
@@ -776,25 +779,6 @@ def process_scrape():
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'Error: {str(e)}'})
-from flask import jsonify
-import traceback
-
-@app.route('/scraping')
-def run_scraping():
-    try:
-        from scraping import search_and_save  # Make sure scraping.py is in the same directory
-        filename = search_and_save()
-        return jsonify({
-            "status": "success",
-            "leads_scraped": "N/A",  # Replace with actual count if needed
-            "output": f"Saved to {filename}"
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e),
-            "trace": traceback.format_exc()
-        })
 
 
 if __name__ == '__main__':
