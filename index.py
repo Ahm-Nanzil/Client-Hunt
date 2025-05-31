@@ -15,7 +15,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 import re
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, render_template
 import threading
 import gc
 from seleniumScrapping import scrape_emails
@@ -688,102 +688,6 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
-
-# templates/.html
-"""
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Multiple Query Scraping</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        .form-group { margin: 20px 0; }
-        label { display: block; margin-bottom: 10px; font-weight: bold; }
-        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 200px; }
-        .btn { padding: 15px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .btn:hover { background: #0056b3; }
-        .result { margin: 20px 0; padding: 15px; border-radius: 5px; }
-        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .loading { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-        .info { background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
-    <h1>Multiple Query Email Scraping</h1>
-
-    <div class="info">
-        <strong>Instructions:</strong> Enter one search query per line. Each query will be processed sequentially.
-    </div>
-
-    <form id="scrapeForm">
-        <div class="form-group">
-            <label for="queries">Search Queries (one per line):</label>
-            <textarea id="queries" name="queries" placeholder="site:instagram.com &quot;fitness Coach&quot; &quot;@gmail.com&quot;
-site:instagram.com &quot;personal trainer&quot; &quot;@gmail.com&quot;
-site:instagram.com &quot;yoga instructor&quot; &quot;@gmail.com&quot;">site:instagram.com "fitness Coach" "@gmail.com"
-site:instagram.com "personal trainer" "@gmail.com"
-site:instagram.com "yoga instructor" "@gmail.com"</textarea>
-        </div>
-
-        <button type="submit" class="btn">Start Scraping</button>
-    </form>
-
-    <div id="result" style="display: none;"></div>
-
-    <script>
-        document.getElementById('scrapeForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const queriesText = document.getElementById('queries').value;
-            const resultDiv = document.getElementById('result');
-
-            if (!queriesText.trim()) {
-                resultDiv.innerHTML = '<div class="result error">Please enter at least one search query.</div>';
-                resultDiv.style.display = 'block';
-                return;
-            }
-
-            // Parse queries
-            const queries = queriesText.split('\n').filter(q => q.trim() !== '');
-
-            if (queries.length === 0) {
-                resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
-                resultDiv.style.display = 'block';
-                return;
-            }
-
-            // Show loading
-            resultDiv.innerHTML = `<div class="result loading">Scraping ${queries.length} queries in progress... This may take several minutes.</div>`;
-            resultDiv.style.display = 'block';
-
-            // Send request
-            fetch('/process_scrape', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    type: 'multiple',
-                    queries: queries
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    resultDiv.innerHTML = `<div class="result success">${data.message}</div>`;
-                } else {
-                    resultDiv.innerHTML = `<div class="result error">${data.message}</div>`;
-                }
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
-            });
-        });
-    </script>
-</body>
-</html>
-"""
 
 @app.route('/')
 def index():
