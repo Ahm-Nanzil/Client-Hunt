@@ -485,6 +485,93 @@ HTML_TEMPLATE = '''
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-dialog {
+            position: relative;
+            margin: 5% auto;
+            width: 80%;
+            max-width: 600px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        
+        .close:hover { color: #000; }
+        
+        .modal-option {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .modal-option:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+            transform: translateY(-2px);
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            margin-left: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
     </style>
 </head>
 <body>
@@ -540,6 +627,18 @@ HTML_TEMPLATE = '''
         </div>
 
         <p style="text-align: center; margin-top: 20px;">Signed by Ahm Nanzil</p>
+    </div>
+    <!-- Scraping Modal -->
+    <div id="scrapingModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>Email Scraping</h2>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="modalContent" class="modal-body">
+                <!-- Content will be dynamically loaded here -->
+            </div>
+        </div>
     </div>
 
     <script>
@@ -736,6 +835,7 @@ function processScrape(type, queries) {
         });
 
         document.addEventListener('DOMContentLoaded', updateProgress);
+    
     </script>
 </body>
 </html>
@@ -792,24 +892,37 @@ def reset_campaign():
 def scraping():
     result = campaign_manager.run_scraping()
     return jsonify(result)
-@app.route('/scrape_options')
-def scrape_options():
-    """Route to show scraping options"""
+# @app.route('/scrape_options')
+# def scrape_options():
+#     """Route to show scraping options"""
+#     return render_template('scrape_options.html')
+#
+#
+# @app.route('/scrape_single')
+# def scrape_single():
+#     """Route for single query scraping"""
+#     return render_template('scrape_single.html')
+#
+#
+# @app.route('/scrape_multiple')
+# def scrape_multiple():
+#     """Route for multiple query scraping"""
+#     return render_template('scrape_multiple.html')
+#
+@app.route('/get_scrape_options')
+def get_scrape_options():
+    """Return HTML content for scrape options modal"""
     return render_template('scrape_options.html')
 
-
-@app.route('/scrape_single')
-def scrape_single():
-    """Route for single query scraping"""
+@app.route('/get_scrape_single')
+def get_scrape_single():
+    """Return HTML content for single query scraping modal"""
     return render_template('scrape_single.html')
 
-
-@app.route('/scrape_multiple')
-def scrape_multiple():
-    """Route for multiple query scraping"""
+@app.route('/get_scrape_multiple')
+def get_scrape_multiple():
+    """Return HTML content for multiple query scraping modal"""
     return render_template('scrape_multiple.html')
-
-
 @app.route('/process_scrape', methods=['POST'])
 def process_scrape():
     """Process the scraping request"""
