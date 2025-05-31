@@ -642,86 +642,73 @@ HTML_TEMPLATE = '''
     </div>
 
     <script>
-        function startScraping() {
-    // Show the scraping options modal
-    document.getElementById('scrapingModal').style.display = 'block';
-}
+// Replace the JavaScript section in your HTML_TEMPLATE with this:
 
 function closeModal() {
     document.getElementById('scrapingModal').style.display = 'none';
-    document.getElementById('modalContent').innerHTML = getOptionsHTML();
+    // Reset modal content to options when closing
+    loadModalContent('/get_scrape_options');
+}
+
+function startScraping() {
+    document.getElementById('scrapingModal').style.display = 'block';
+    loadModalContent('/get_scrape_options');
 }
 
 function showSingleQuery() {
-    document.getElementById('modalContent').innerHTML = getSingleQueryHTML();
+    loadModalContent('/get_scrape_single');
 }
 
 function showMultipleQuery() {
-    document.getElementById('modalContent').innerHTML = getMultipleQueryHTML();
+    loadModalContent('/get_scrape_multiple');
 }
 
-function getOptionsHTML() {
-    return `
-        <h2>Choose Scraping Method</h2>
-        <div class="modal-option" onclick="showSingleQuery()">
-            <h3>Single Query Scraping</h3>
-            <p>Scrape emails using one search query</p>
-        </div>
-        <div class="modal-option" onclick="showMultipleQuery()">
-            <h3>Multiple Query Scraping</h3>
-            <p>Scrape emails using multiple search queries</p>
-        </div>
-    `;
-}
-
-function getSingleQueryHTML() {
-    return `
-        <h2>Single Query Email Scraping</h2>
-        <form id="singleScrapeForm" onsubmit="processSingleScrape(event)">
-            <div class="form-group">
-                <label for="singleQuery">Search Query:</label>
-                <input type="text" id="singleQuery" name="query"
-                       value='site:instagram.com "fitness Coach" "@gmail.com"'
-                       placeholder="Enter your search query" required>
-            </div>
-            <button type="submit" class="btn">Start Scraping</button>
-            <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
-        </form>
-        <div id="scrapeResult" style="display: none;"></div>
-    `;
-}
-
-function getMultipleQueryHTML() {
-    return `
-        <h2>Multiple Query Email Scraping</h2>
-        <form id="multipleScrapeForm" onsubmit="processMultipleScrape(event)">
-            <div class="form-group">
-                <label for="multipleQueries">Search Queries (one per line):</label>
-                <textarea id="multipleQueries" rows="5" placeholder="Enter multiple queries, one per line" required></textarea>
-            </div>
-            <button type="submit" class="btn">Start Scraping</button>
-            <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
-        </form>
-        <div id="scrapeResult" style="display: none;"></div>
-    `;
+function loadModalContent(url) {
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading modal content:', error);
+            document.getElementById('modalContent').innerHTML = 
+                '<div class="alert alert-error">Error loading content: ' + error.message + '</div>';
+        });
 }
 
 function processSingleScrape(event) {
     event.preventDefault();
     const query = document.getElementById('singleQuery').value;
+    if (!query.trim()) {
+        alert('Please enter a search query');
+        return;
+    }
     processScrape('single', [query]);
 }
 
 function processMultipleScrape(event) {
     event.preventDefault();
-    const queries = document.getElementById('multipleQueries').value.split('\n').filter(q => q.trim());
+    const queries = document.getElementById('multipleQueries').value
+        .split('\n')
+        .map(q => q.trim())
+        .filter(q => q.length > 0);
+    
+    if (queries.length === 0) {
+        alert('Please enter at least one search query');
+        return;
+    }
     processScrape('multiple', queries);
 }
 
 function processScrape(type, queries) {
     const resultDiv = document.getElementById('scrapeResult');
     resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<div class="alert alert-info">Scraping in progress... This may take a few minutes.</div>';
+    resultDiv.innerHTML = '<div class="alert alert-info"><div class="spinner"></div>Scraping in progress... This may take a few minutes.</div>';
 
     fetch('/process_scrape', {
         method: 'POST',
@@ -733,108 +720,137 @@ function processScrape(type, queries) {
         if (data.success) {
             resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
             updateProgress(); // Update the main page progress
+            setTimeout(() => {
+                closeModal();
+            }, 3000); // Close modal after 3 seconds
         } else {
             resultDiv.innerHTML = `<div class="alert alert-error">${data.message}</div>`;
         }
     })
     .catch(error => {
+        console.error('Scraping error:', error);
         resultDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
     });
 }
 
-        function resetCampaign() {
-            if (confirm('Are you sure you want to reset the entire campaign?')) {
-                fetch('/reset')
-                    .then(response => response.json())
-                    .then(data => {
-                        const resultDiv = document.getElementById('result');
-                        resultDiv.style.display = 'block';
-                        resultDiv.innerHTML = `
-                            <div class="alert alert-success">
-                                <h3>Campaign Reset</h3>
-                                <p>${data.message}</p>
-                            </div>
-                        `;
-                        updateProgress();
-                        setTimeout(() => window.location.reload(), 2000);
-                    });
-            }
-        }
-
-        function updateProgress() {
-            fetch('/progress')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('emails-sent').textContent = data.total_processed;
-                    document.getElementById('total-clients').textContent = data.total_clients;
-
-                    const overallProgress = (data.total_processed / Math.max(1, data.total_clients)) * 100;
-                    document.getElementById('overall-progress').style.width = overallProgress + '%';
-                    document.getElementById('overall-percentage').textContent = overallProgress.toFixed(1);
-
-                    const batchProgress = (data.current_batch_progress / Math.max(1, data.batch_size)) * 100;
-                    document.getElementById('batch-progress').style.width = batchProgress + '%';
-                    document.getElementById('batch-percentage').textContent = batchProgress.toFixed(1);
-                    document.getElementById('current-sent').textContent = data.current_batch_progress;
-
-                    if (document.getElementById('sending-status').style.display === 'block') {
-                        setTimeout(updateProgress, 2000);
-                    }
-                })
-                .catch(error => console.error('Error fetching progress:', error));
-        }
-
-        document.getElementById('emailForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const sendButton = document.getElementById('sendBatch');
-            sendButton.disabled = true;
-            sendButton.textContent = 'Sending...';
-
-            document.getElementById('sending-status').style.display = 'block';
-            updateProgress();
-
-            fetch('/send', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'}
-            })
+function resetCampaign() {
+    if (confirm('Are you sure you want to reset the entire campaign?')) {
+        fetch('/reset')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('sending-status').style.display = 'none';
-
                 const resultDiv = document.getElementById('result');
                 resultDiv.style.display = 'block';
-
-                if (data.status === 'success') {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-success">
-                            <h3>Batch Sent Successfully</h3>
-                            <p>Sent ${data.sent_count} emails</p>
-                            <p>Failed: ${data.failed_count || 0} emails</p>
-                            <p>Total processed: ${data.total_processed} out of ${data.total_clients}</p>
-                        </div>
-                    `;
-                } else {
-                    resultDiv.innerHTML = `
-                        <div class="alert alert-info">
-                            <h3>${data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped'}</h3>
-                            <p>${data.message}</p>
-                        </div>
-                    `;
-                }
-
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h3>Campaign Reset</h3>
+                        <p>${data.message}</p>
+                    </div>
+                `;
                 updateProgress();
-                sendButton.disabled = false;
-                sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+                setTimeout(() => window.location.reload(), 2000);
             })
             .catch(error => {
-                document.getElementById('sending-status').style.display = 'none';
-                sendButton.disabled = false;
-                sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+                console.error('Reset error:', error);
+                alert('Error resetting campaign');
             });
-        });
+    }
+}
 
-        document.addEventListener('DOMContentLoaded', updateProgress);
+function updateProgress() {
+    fetch('/progress')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('emails-sent').textContent = data.total_processed;
+            document.getElementById('total-clients').textContent = data.total_clients;
+
+            const overallProgress = (data.total_processed / Math.max(1, data.total_clients)) * 100;
+            document.getElementById('overall-progress').style.width = overallProgress + '%';
+            document.getElementById('overall-percentage').textContent = overallProgress.toFixed(1);
+
+            const batchProgress = (data.current_batch_progress / Math.max(1, data.batch_size)) * 100;
+            document.getElementById('batch-progress').style.width = batchProgress + '%';
+            document.getElementById('batch-percentage').textContent = batchProgress.toFixed(1);
+            document.getElementById('current-sent').textContent = data.current_batch_progress;
+
+            if (document.getElementById('sending-status').style.display === 'block') {
+                setTimeout(updateProgress, 2000);
+            }
+        })
+        .catch(error => console.error('Error fetching progress:', error));
+}
+
+// Email form submission
+document.getElementById('emailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const sendButton = document.getElementById('sendBatch');
+    sendButton.disabled = true;
+    sendButton.textContent = 'Sending...';
+
+    document.getElementById('sending-status').style.display = 'block';
+    updateProgress();
+
+    fetch('/send', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('sending-status').style.display = 'none';
+
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+
+        if (data.status === 'success') {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h3>Batch Sent Successfully</h3>
+                    <p>Sent ${data.sent_count} emails</p>
+                    <p>Failed: ${data.failed_count || 0} emails</p>
+                    <p>Total processed: ${data.total_processed} out of ${data.total_clients}</p>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <h3>${data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped'}</h3>
+                    <p>${data.message}</p>
+                </div>
+            `;
+        }
+
+        updateProgress();
+        sendButton.disabled = false;
+        sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+    })
+    .catch(error => {
+        console.error('Email sending error:', error);
+        document.getElementById('sending-status').style.display = 'none';
+        const sendButton = document.getElementById('sendBatch');
+        sendButton.disabled = false;
+        sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+        
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div class="alert alert-error">Error sending emails. Please try again.</div>';
+    });
+});
+
+// Initialize progress on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateProgress();
+    
+    // Initialize modal content
+    loadModalContent('/get_scrape_options');
+});
+
+// Close modal when clicking outside of it
+window.onclick = function(event) {
+    const modal = document.getElementById('scrapingModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
     
     </script>
 </body>
@@ -912,17 +928,51 @@ def scraping():
 @app.route('/get_scrape_options')
 def get_scrape_options():
     """Return HTML content for scrape options modal"""
-    return render_template('scrape_options.html')
+    options_html = '''
+    <div class="modal-option" onclick="showSingleQuery()">
+        <h3>🔍 Single Query Scraping</h3>
+        <p>Scrape emails for one specific search query</p>
+    </div>
+    <div class="modal-option" onclick="showMultipleQuery()">
+        <h3>📝 Multiple Query Scraping</h3>
+        <p>Scrape emails for multiple search queries at once</p>
+    </div>
+    '''
+    return options_html
 
 @app.route('/get_scrape_single')
 def get_scrape_single():
     """Return HTML content for single query scraping modal"""
-    return render_template('scrape_single.html')
+    single_html = '''
+    <form onsubmit="processSingleScrape(event)">
+        <div class="form-group">
+            <label for="singleQuery">Enter Search Query:</label>
+            <input type="text" id="singleQuery" name="query" required 
+                   placeholder="e.g., restaurants in New York">
+        </div>
+        <button type="submit">Start Scraping</button>
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </form>
+    <div id="scrapeResult" style="display: none; margin-top: 20px;"></div>
+    '''
+    return single_html
 
 @app.route('/get_scrape_multiple')
 def get_scrape_multiple():
     """Return HTML content for multiple query scraping modal"""
-    return render_template('scrape_multiple.html')
+    multiple_html = '''
+    <form onsubmit="processMultipleScrape(event)">
+        <div class="form-group">
+            <label for="multipleQueries">Enter Search Queries (one per line):</label>
+            <textarea id="multipleQueries" name="queries" rows="6" required 
+                      placeholder="restaurants in New York&#10;hotels in Los Angeles&#10;gyms in Chicago"></textarea>
+        </div>
+        <button type="submit">Start Scraping</button>
+        <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+    </form>
+    <div id="scrapeResult" style="display: none; margin-top: 20px;"></div>
+    '''
+    return multiple_html
 @app.route('/process_scrape', methods=['POST'])
 def process_scrape():
     """Process the scraping request"""
