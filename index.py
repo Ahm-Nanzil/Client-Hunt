@@ -485,6 +485,35 @@ HTML_TEMPLATE = '''
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            border-radius: 8px;
+            position: relative;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: black;
+        }
     </style>
 </head>
 <body>
@@ -522,6 +551,7 @@ HTML_TEMPLATE = '''
             <button type="submit" id="sendBatch">Send Next Batch ({{ batch_size }} emails)</button>
             <button type="button" onclick="resetCampaign()" class="reset">Reset Campaign</button>
             <button type="button" onclick="startScraping()" id="scrapingBtn" class="scraping">Start Scraping</button>
+            <button type="button" onclick="showModal()" id="modalBtn" class="scraping">Modal Show</button>
         </form>
 
         <div id="result"></div>
@@ -541,13 +571,29 @@ HTML_TEMPLATE = '''
 
         <p style="text-align: center; margin-top: 20px;">Signed by Ahm Nanzil</p>
     </div>
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <div id="modal-body">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
 
     <script>
         function startScraping() {
     // Redirect to scraping options page instead of directly scraping
     window.location.href = '/scrape_options';
         }
-
+        function showModal() {
+            document.getElementById('myModal').style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('myModal').style.display = 'none';
+        }
+        
+    
         function resetCampaign() {
             if (confirm('Are you sure you want to reset the entire campaign?')) {
                 fetch('/reset')
