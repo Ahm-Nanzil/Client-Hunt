@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Email Campaign Manager - Fixed Scraping Version
+Email Campaign Manager - Optimized Version
 """
 
 import csv
@@ -15,9 +15,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 import re
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for
+from flask import Flask, request, jsonify, render_template_string
 import threading
 import gc
+from seleniumScrapping import scrape_emails
+
 
 # Configuration
 BATCH_SIZE = 1
@@ -307,8 +309,7 @@ class EmailCampaignManager:
             'progress_percentage': round((tracking['total_processed'] / max(1, total_rows)) * 100, 1)
         }
 
-    def run_scraping_with_queries(self, scrape_type, queries):
-        """Run scraping with specific queries"""
+    def run_scraping(self):
         try:
             if not os.path.exists(SCRAPING_SCRIPT):
                 return {
@@ -316,34 +317,18 @@ class EmailCampaignManager:
                     'message': f'Scraping script {SCRAPING_SCRIPT} not found in directory'
                 }
 
-            # Prepare arguments for the scraping script
-            if scrape_type == 'single':
-                args = ['python', SCRAPING_SCRIPT, '--single', queries[0]]
-            else:  # multiple
-                # Create a temporary file with queries
-                temp_queries_file = 'temp_queries.txt'
-                with open(temp_queries_file, 'w', encoding='utf-8') as f:
-                    for query in queries:
-                        f.write(query.strip() + '\n')
-
-                args = ['python', SCRAPING_SCRIPT, '--multiple', temp_queries_file]
-
-            # Run the scraping script
-            result = subprocess.run(args, capture_output=True, text=True, timeout=600)
-
-            # Clean up temporary file if created
-            if scrape_type == 'multiple' and os.path.exists('temp_queries.txt'):
-                os.remove('temp_queries.txt')
+            result = subprocess.run(['python', SCRAPING_SCRIPT],
+                                    capture_output=True, text=True, timeout=300)
 
             if result.returncode == 0:
-                # Count new emails added
+                # Parse output to get results
                 output_lines = result.stdout.strip().split('\n')
-                emails_found = len([line for line in output_lines if '@' in line and 'Found' in line])
-
                 return {
                     'status': 'success',
-                    'message': f'Scraping completed! Processed {len(queries)} queries.',
-                    'emails_found': emails_found,
+                    'message': 'Scraping completed successfully',
+                    'leads_scraped': len([line for line in output_lines if '@' in line]),
+                    'new_leads_added': 0,
+                    'existing_leads_skipped': 0,
                     'output': result.stdout
                 }
             else:
@@ -355,7 +340,7 @@ class EmailCampaignManager:
         except subprocess.TimeoutExpired:
             return {
                 'status': 'error',
-                'message': 'Scraping timeout (10 minutes exceeded)'
+                'message': 'Scraping timeout (5 minutes exceeded)'
             }
         except Exception as e:
             return {
@@ -366,8 +351,7 @@ class EmailCampaignManager:
 
 campaign_manager = EmailCampaignManager()
 
-# Main Dashboard HTML Template
-MAIN_HTML_TEMPLATE = '''
+HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -537,7 +521,7 @@ MAIN_HTML_TEMPLATE = '''
         <form id="emailForm">
             <button type="submit" id="sendBatch">Send Next Batch ({{ batch_size }} emails)</button>
             <button type="button" onclick="resetCampaign()" class="reset">Reset Campaign</button>
-            <button type="button" onclick="window.location.href='/scrape_options'" class="scraping">Start Scraping</button>
+            <button type="button" onclick="startScraping()" id="scrapingBtn" class="scraping">Start Scraping</button>
         </form>
 
         <div id="result"></div>
@@ -559,6 +543,53 @@ MAIN_HTML_TEMPLATE = '''
     </div>
 
     <script>
+        function startScraping() {
+            const scrapingBtn = document.getElementById('scrapingBtn');
+            const originalText = scrapingBtn.textContent;
+            scrapingBtn.disabled = true;
+            scrapingBtn.textContent = 'Scraping...';
+
+            fetch('/scraping')
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('result');
+                    resultDiv.style.display = 'block';
+
+                    if (data.status === 'success') {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <h3>Scraping Completed Successfully</h3>
+                                <p>Leads scraped: ${data.leads_scraped || 'N/A'}</p>
+                                <p>Script output available in console</p>
+                            </div>
+                        `;
+                        console.log('Scraping output:', data.output);
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-error">
+                                <h3>Scraping Failed</h3>
+                                <p>${data.message}</p>
+                            </div>
+                        `;
+                    }
+
+                    scrapingBtn.disabled = false;
+                    scrapingBtn.textContent = originalText;
+                    updateProgress();
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = `
+                        <div class="alert alert-error">
+                            <h3>Scraping Error</h3>
+                            <p>${error}</p>
+                        </div>
+                    `;
+                    document.getElementById('result').style.display = 'block';
+                    scrapingBtn.disabled = false;
+                    scrapingBtn.textContent = originalText;
+                });
+        }
+
         function resetCampaign() {
             if (confirm('Are you sure you want to reset the entire campaign?')) {
                 fetch('/reset')
@@ -656,149 +687,328 @@ MAIN_HTML_TEMPLATE = '''
 </body>
 </html>
 '''
-
-# Scraping Options Template
-SCRAPE_OPTIONS_TEMPLATE = '''
+# templates/scrape_options.html
+"""
 <!DOCTYPE html>
 <html>
 <head>
     <title>Email Scraping Options</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 50px auto; 
-            padding: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .option-card { 
-            border: 1px solid #ddd; 
-            padding: 20px; 
-            margin: 20px 0; 
-            border-radius: 8px; 
-            background-color: #f9f9f9;
-        }
-        .btn { 
-            padding: 15px 30px; 
-            background: #007bff; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 5px; 
-            display: inline-block; 
-            margin: 10px; 
-        }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .option-card { border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .btn { padding: 15px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px; }
         .btn:hover { background: #0056b3; }
-        .btn-back {
-            background: #6c757d;
-            padding: 10px 20px;
-            margin-bottom: 20px;
-        }
-        .btn-back:hover { background: #545b62; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/" class="btn btn-back">← Back to Dashboard</a>
+    <h1>Email Scraping Options</h1>
 
-        <h1>Email Scraping Options</h1>
+    <div class="option-card">
+        <h3>Single Query</h3>
+        <p>Scrape emails using one search query at a time.</p>
+        <a href="/scrape_single" class="btn">Single Query</a>
+    </div>
 
-        <div class="option-card">
-            <h3>Single Query</h3>
-            <p>Scrape emails using one search query at a time. Perfect for testing or targeting specific searches.</p>
-            <a href="/scrape_single" class="btn">Single Query</a>
-        </div>
-
-        <div class="option-card">
-            <h3>Multiple Queries</h3>
-            <p>Scrape emails using multiple search queries in sequence. Ideal for bulk scraping with different search terms.</p>
-            <a href="/scrape_multiple" class="btn">Multiple Queries</a>
-        </div>
+    <div class="option-card">
+        <h3>Multiple Queries</h3>
+        <p>Scrape emails using multiple search queries in sequence.</p>
+        <a href="/scrape_multiple" class="btn">Multiple Queries</a>
     </div>
 </body>
 </html>
-'''
+"""
 
-# Single Query Scraping Template
-SCRAPE_SINGLE_TEMPLATE = '''
+# templates/scrape_single.html
+"""
 <!DOCTYPE html>
 <html>
 <head>
     <title>Single Query Scraping</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 800px; 
-            margin: 50px auto; 
-            padding: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
         .form-group { margin: 20px 0; }
         label { display: block; margin-bottom: 10px; font-weight: bold; }
-        input[type="text"] { 
-            width: 100%; 
-            padding: 12px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            box-sizing: border-box;
-        }
-        .btn { 
-            padding: 15px 30px; 
-            background: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-        }
+        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .btn { padding: 15px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
         .btn:hover { background: #0056b3; }
-        .btn-back {
-            background: #6c757d;
-            padding: 10px 20px;
-            margin-bottom: 20px;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .btn-back:hover { background: #545b62; }
         .result { margin: 20px 0; padding: 15px; border-radius: 5px; }
         .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         .loading { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-        .example { 
-            background: #e9ecef; 
-            padding: 10px; 
-            border-radius: 4px; 
-            margin-top: 10px; 
-            font-style: italic;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/scrape_options" class="btn btn-back">← Back to Scraping Options</a>
+    <h1>Single Query Email Scraping</h1>
 
-        <h1>Single Query Email Scraping</h1>
+    <form id="scrapeForm">
+        <div class="form-group">
+            <label for="query">Search Query:</label>
+            <input type="text" id="query" name="query" 
+                   value='site:instagram.com "fitness Coach" "@gmail.com"' 
+                   placeholder="Enter your search query">
+        </div>
 
-        <form id="scrapeForm">
-            <div class="form-group">
-                <label for="query">Search Query:</label>
-                <input type="text" id="query" name="query" 
-                       value='site:instagram.com "fitness Coach" "@gmail.com"' 
-                       placeholder="Enter your search query">
-                <div class="example">
-                    Example: site:instagram.com "fitness Coach" "@gmail.com"<br>
-                    This will search Instagram for fitness coaches with Gmail addresses.
-                </div>
-            </div>
+        <button type="submit" class="btn">Start Scraping</button>
+    </form>
 
-            <button type="submit" class="btn
+    <div id="result" style="display: none;"></div>
+
+    <script>
+        document.getElementById('scrapeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const query = document.getElementById('query').value;
+            const resultDiv = document.getElementById('result');
+
+            if (!query.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            // Show loading
+            resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
+            resultDiv.style.display = 'block';
+
+            // Send request
+            fetch('/process_scrape', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: 'single',
+                    queries: [query]
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="result success">${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            });
+        });
+    </script>
+</body>
+</html>
+"""
+
+# templates/scrape_multiple.html
+"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multiple Query Scraping</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .form-group { margin: 20px 0; }
+        label { display: block; margin-bottom: 10px; font-weight: bold; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; min-height: 200px; }
+        .btn { padding: 15px 30px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .btn:hover { background: #0056b3; }
+        .result { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .info { background: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Multiple Query Email Scraping</h1>
+
+    <div class="info">
+        <strong>Instructions:</strong> Enter one search query per line. Each query will be processed sequentially.
+    </div>
+
+    <form id="scrapeForm">
+        <div class="form-group">
+            <label for="queries">Search Queries (one per line):</label>
+            <textarea id="queries" name="queries" placeholder="site:instagram.com &quot;fitness Coach&quot; &quot;@gmail.com&quot;
+site:instagram.com &quot;personal trainer&quot; &quot;@gmail.com&quot;
+site:instagram.com &quot;yoga instructor&quot; &quot;@gmail.com&quot;">site:instagram.com "fitness Coach" "@gmail.com"
+site:instagram.com "personal trainer" "@gmail.com"
+site:instagram.com "yoga instructor" "@gmail.com"</textarea>
+        </div>
+
+        <button type="submit" class="btn">Start Scraping</button>
+    </form>
+
+    <div id="result" style="display: none;"></div>
+
+    <script>
+        document.getElementById('scrapeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const queriesText = document.getElementById('queries').value;
+            const resultDiv = document.getElementById('result');
+
+            if (!queriesText.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter at least one search query.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            // Parse queries
+            const queries = queriesText.split('\n').filter(q => q.trim() !== '');
+
+            if (queries.length === 0) {
+                resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            // Show loading
+            resultDiv.innerHTML = `<div class="result loading">Scraping ${queries.length} queries in progress... This may take several minutes.</div>`;
+            resultDiv.style.display = 'block';
+
+            // Send request
+            fetch('/process_scrape', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: 'multiple',
+                    queries: queries
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="result success">${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            });
+        });
+    </script>
+</body>
+</html>
+"""
+
+@app.route('/')
+def index():
+    tracking = campaign_manager.initialize_tracking_data()
+    total_rows = campaign_manager.count_total_rows() - 1
+
+    overall_progress = round((tracking['total_processed'] / max(1, total_rows)) * 100, 1)
+    batch_progress = round((tracking['current_batch_progress'] / max(1, BATCH_SIZE)) * 100, 1)
+
+    return render_template_string(HTML_TEMPLATE,
+                                  total_clients=total_rows,
+                                  batch_size=BATCH_SIZE,
+                                  emails_sent=tracking['total_processed'],
+                                  next_batch_start=tracking['current_index'],
+                                  last_batch_time=tracking['last_batch_time'] or 'Never',
+                                  overall_progress=overall_progress,
+                                  batch_progress=batch_progress)
+
+
+@app.route('/progress')
+def get_progress():
+    return jsonify(campaign_manager.get_current_progress())
+
+
+@app.route('/send', methods=['POST'])
+def send_emails():
+    result = campaign_manager.process_emails()
+    return jsonify(result)
+
+
+@app.route('/reset')
+def reset_campaign():
+    campaign_manager.reset_all_clients()
+    tracking = campaign_manager.initialize_tracking_data()
+    tracking.update({
+        'current_index': 0,
+        'total_processed': 0,
+        'all_sent': False,
+        'current_batch_progress': 0
+    })
+    campaign_manager.save_tracking_data(tracking)
+
+    return jsonify({
+        'status': 'success',
+        'message': 'Campaign has been reset successfully'
+    })
+
+
+@app.route('/scrape_options')
+def scrape_options():
+    """Route to show scraping options"""
+    return render_template('scrape_options.html')
+
+
+@app.route('/scrape_single')
+def scrape_single():
+    """Route for single query scraping"""
+    return render_template('scrape_single.html')
+
+
+@app.route('/scrape_multiple')
+def scrape_multiple():
+    """Route for multiple query scraping"""
+    return render_template('scrape_multiple.html')
+
+
+@app.route('/process_scrape', methods=['POST'])
+def process_scrape():
+    """Process the scraping request"""
+    try:
+        data = request.get_json()
+        query_type = data.get('type')
+        queries = data.get('queries')
+
+        if not query_type or not queries:
+            return jsonify({'success': False, 'message': 'Missing required data'})
+
+        # Call the scraping function
+        result = scrape_emails(query_type, queries)
+
+        return jsonify({
+            'success': True,
+            'message': f'Scraping completed! Found {result} new emails.',
+            'count': result
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+
+if __name__ == '__main__':
+    if not os.path.exists(CSV_FILE):
+        with open(CSV_FILE, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(['Email', 'Customer Name', 'Address', 'Customer Number', 'Sent'])
+            writer.writerow(['example@email.com', 'John Doe', '123 Main St', 'CUST001', 'No'])
+
+    if not os.path.exists(EMAIL_TEMPLATE):
+        with open(EMAIL_TEMPLATE, 'w', encoding='utf-8') as f:
+            f.write('''
+            <html>
+            <body>
+                <h1>Professional Website Services</h1>
+                <p>Dear Valued Customer,</p>
+                <p>Boost your online presence with a professional website!</p>
+                <p>Best regards,<br>Web Development Team</p>
+            </body>
+            </html>
+            ''')
+
+    print("Email Campaign Manager is starting...")
+    print("Access the web interface at: http://localhost:5000")
+    print("\nMake sure to:")
+    print("1. Update your email credentials in the script")
+    print("2. Place your clients.csv file in the same directory")
+    print("3. Create your emailbody.html template")
+    print("4. Ensure seleniumScrapping.py is in the same directory")
+
+    app.run(debug=True, host='0.0.0.0', port=5000)
