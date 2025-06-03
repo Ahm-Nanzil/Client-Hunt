@@ -636,17 +636,17 @@ HTML_TEMPLATE = '''
         }
         
         function loadModalContent(url) {
-        fetch(url)
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('modal-body').innerHTML = html;
-                bindSingleScrapeForm(); // Important: call after loading HTML
-                showModal(); // Show the modal
-            })
-            .catch(error => {
-                console.error('Error loading modal content:', error);
-            });
-    }
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modal-body').innerHTML = html;
+            bindSingleScrapeForm(); // Important: call after loading HTML
+            showModal(); // Show the modal
+        })
+        .catch(error => {
+            console.error('Error loading modal content:', error);
+        });
+}
         
         
         function closeModal() {
