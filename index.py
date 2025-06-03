@@ -581,39 +581,39 @@ HTML_TEMPLATE = '''
     </div>
     <!-- Inside main HTML template (e.g. templates/index.html) -->
     <script>
-    function bindModalForm() {
-        const form = document.getElementById('scrapeForm');
-        if (!form) return;
-    
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const query = document.getElementById('query').value;
-            const resultDiv = document.getElementById('result');
-    
-            if (!query.trim()) {
-                resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
-                resultDiv.style.display = 'block';
-                return;
-            }
-    
-            resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
+function bindSingleModalForm() {
+    const form = document.getElementById('singleScrapeForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const query = document.getElementById('singleQueryInput').value;
+        const resultDiv = document.getElementById('singleResult');
+
+        if (!query.trim()) {
+            resultDiv.innerHTML = '<div class="single-result-box single-error">Please enter a search query.</div>';
             resultDiv.style.display = 'block';
-    
-            fetch('/process_scrape', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'single', queries: [query] })
-            })
-            .then(response => response.json())
-            .then(data => {
-                resultDiv.innerHTML = `<div class="result ${data.success ? 'success' : 'error'}">${data.message}</div>`;
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
-            });
+            return;
+        }
+
+        resultDiv.innerHTML = '<div class="single-result-box single-loading">Scraping in progress... This may take a few minutes.</div>';
+        resultDiv.style.display = 'block';
+
+        fetch('/process_scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'single', queries: [query] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultDiv.innerHTML = `<div class="single-result-box ${data.success ? 'single-success' : 'single-error'}">${data.message}</div>`;
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `<div class="single-result-box single-error">Error: ${error.message}</div>`;
         });
-    }
-    </script>
+    });
+}
+</script>
 
     <script>
         function startScraping() {
