@@ -581,27 +581,29 @@ HTML_TEMPLATE = '''
     </div>
     <!-- Inside main HTML template (e.g. templates/index.html) -->
 <script>
+
+
+// Updated bindModalForm function
 function bindModalForm() {
     console.log('bindModalForm called');
     
-    // Use a more robust approach with event delegation or direct binding
-    const modalBody = document.getElementById('modal-body');
-    if (!modalBody) {
-        console.error('Modal body not found');
-        return;
-    }
+    // Remove any existing event listeners first
+    const existingHandlers = document.querySelectorAll('[data-form-bound]');
+    existingHandlers.forEach(el => {
+        el.removeAttribute('data-form-bound');
+    });
     
     // Handle Single Query Form
-    const formSingle = modalBody.querySelector('#scrapeFormSingle');
+    const formSingle = document.getElementById('scrapeFormSingle');
     console.log('formSingle found:', formSingle);
-    if (formSingle) {
-        // Remove any existing listeners first
-        const newFormSingle = formSingle.cloneNode(true);
-        formSingle.parentNode.replaceChild(newFormSingle, formSingle);
+    
+    if (formSingle && !formSingle.hasAttribute('data-form-bound')) {
+        formSingle.setAttribute('data-form-bound', 'true');
         
-        newFormSingle.addEventListener('submit', function(e) {
+        formSingle.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('Single form submitted');
+            
             const query = document.getElementById('querySingle').value;
             const resultDiv = document.getElementById('resultSingle');
 
@@ -630,16 +632,16 @@ function bindModalForm() {
     }
 
     // Handle Multiple Query Form
-    const formMultiple = modalBody.querySelector('#scrapeForm');
+    const formMultiple = document.getElementById('scrapeForm');
     console.log('formMultiple found:', formMultiple);
-    if (formMultiple) {
-        // Remove any existing listeners first
-        const newFormMultiple = formMultiple.cloneNode(true);
-        formMultiple.parentNode.replaceChild(newFormMultiple, formMultiple);
+    
+    if (formMultiple && !formMultiple.hasAttribute('data-form-bound')) {
+        formMultiple.setAttribute('data-form-bound', 'true');
         
-        newFormMultiple.addEventListener('submit', function(e) {
+        formMultiple.addEventListener('submit', function(e) {
             e.preventDefault();
             console.log('Multiple form submitted');
+            
             const queriesText = document.getElementById('queries').value;
             const resultDiv = document.getElementById('result');
             
@@ -706,15 +708,18 @@ function bindModalForm() {
                 });
         }
         
-        function loadModalContent(url) {
+// Updated loadModalContent function
+function loadModalContent(url) {
     fetch(url)
         .then(response => response.text())
         .then(html => {
             document.getElementById('modal-body').innerHTML = html;
-            // Add a small delay to ensure DOM is ready
-            setTimeout(() => {
+            
+            // Use requestAnimationFrame to ensure DOM is fully updated
+            requestAnimationFrame(() => {
                 bindModalForm();
-            }, 100);
+            });
+            
             new bootstrap.Modal(document.getElementById('customModal')).show();
         })
         .catch(error => {
