@@ -571,14 +571,51 @@ HTML_TEMPLATE = '''
 
         <p style="text-align: center; margin-top: 20px;">Signed by Ahm Nanzil</p>
     </div>
-    <div id="myModal" class="modal">
+    <!-- Put this once in your index.html -->
+    <div id="myModal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
             <div id="modal-body">
-                <!-- Content will be loaded here -->
+                <!-- Dynamic content will be injected here -->
             </div>
         </div>
     </div>
+
+    <!-- Inside main HTML template (e.g. templates/index.html) -->
+    <script>
+    function bindModalForm() {
+        const form = document.getElementById('scrapeForm');
+        if (!form) return;
+    
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = document.getElementById('query').value;
+            const resultDiv = document.getElementById('result');
+    
+            if (!query.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+    
+            resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
+            resultDiv.style.display = 'block';
+    
+            fetch('/process_scrape', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'single', queries: [query] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultDiv.innerHTML = `<div class="result ${data.success ? 'success' : 'error'}">${data.message}</div>`;
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            });
+        });
+    }
+    </script>
 
     <script>
         function startScraping() {
@@ -599,15 +636,17 @@ HTML_TEMPLATE = '''
         }
         
         function loadModalContent(url) {
-            fetch(url)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('modal-body').innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('Error loading content:', error);
-                });
-        }
+        fetch(url)
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('modal-body').innerHTML = html;
+                bindSingleScrapeForm(); // Important: call after loading HTML
+                showModal(); // Show the modal
+            })
+            .catch(error => {
+                console.error('Error loading modal content:', error);
+            });
+    }
         
         
         function closeModal() {
