@@ -582,41 +582,7 @@ HTML_TEMPLATE = '''
     </div>
 
     <!-- Inside main HTML template (e.g. templates/index.html) -->
-    <script>
-function bindSingleScrapeForm() {
-    const form = document.getElementById('singleScrapeForm');
-    if (!form) return;
-
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        const query = document.getElementById('singleQuery').value;
-        const resultDiv = document.getElementById('singleResult');
-
-        if (!query.trim()) {
-            resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
-            resultDiv.style.display = 'block';
-            return;
-        }
-
-        resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
-        resultDiv.style.display = 'block';
-
-        fetch('/process_scrape', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'single', queries: [query] })
-        })
-        .then(response => response.json())
-        .then(data => {
-            resultDiv.innerHTML = `<div class="result ${data.success ? 'success' : 'error'}">${data.message}</div>`;
-        })
-        .catch(error => {
-            resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
-        });
-    });
-}
-</script>
+    
 
     <script>
         function startScraping() {
