@@ -580,13 +580,28 @@ HTML_TEMPLATE = '''
         </div>
     </div>
     <!-- Inside main HTML template (e.g. templates/index.html) -->
-    <script>
+<script>
 function bindModalForm() {
+    console.log('bindModalForm called');
+    
+    // Use a more robust approach with event delegation or direct binding
+    const modalBody = document.getElementById('modal-body');
+    if (!modalBody) {
+        console.error('Modal body not found');
+        return;
+    }
+    
     // Handle Single Query Form
-    const formSingle = document.getElementById('scrapeFormSingle');
+    const formSingle = modalBody.querySelector('#scrapeFormSingle');
+    console.log('formSingle found:', formSingle);
     if (formSingle) {
-        formSingle.addEventListener('submit', function(e) {
+        // Remove any existing listeners first
+        const newFormSingle = formSingle.cloneNode(true);
+        formSingle.parentNode.replaceChild(newFormSingle, formSingle);
+        
+        newFormSingle.addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log('Single form submitted');
             const query = document.getElementById('querySingle').value;
             const resultDiv = document.getElementById('resultSingle');
 
@@ -615,10 +630,16 @@ function bindModalForm() {
     }
 
     // Handle Multiple Query Form
-    const formMultiple = document.getElementById('scrapeForm');
+    const formMultiple = modalBody.querySelector('#scrapeForm');
+    console.log('formMultiple found:', formMultiple);
     if (formMultiple) {
-        formMultiple.addEventListener('submit', function(e) {
+        // Remove any existing listeners first
+        const newFormMultiple = formMultiple.cloneNode(true);
+        formMultiple.parentNode.replaceChild(newFormMultiple, formMultiple);
+        
+        newFormMultiple.addEventListener('submit', function(e) {
             e.preventDefault();
+            console.log('Multiple form submitted');
             const queriesText = document.getElementById('queries').value;
             const resultDiv = document.getElementById('result');
             
@@ -686,17 +707,20 @@ function bindModalForm() {
         }
         
         function loadModalContent(url) {
-            fetch(url)
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('modal-body').innerHTML = html;
-                    bindModalForm();
-                    new bootstrap.Modal(document.getElementById('customModal')).show(); // 💡 Show modal
-                })
-                .catch(error => {
-                    console.error('Error loading content:', error);
-                });
-        }
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modal-body').innerHTML = html;
+            // Add a small delay to ensure DOM is ready
+            setTimeout(() => {
+                bindModalForm();
+            }, 100);
+            new bootstrap.Modal(document.getElementById('customModal')).show();
+        })
+        .catch(error => {
+            console.error('Error loading content:', error);
+        });
+}
         
         
         function closeModal() {
