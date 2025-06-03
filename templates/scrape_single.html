@@ -16,23 +16,21 @@
     </style>
 </head>
 <body>
-<div style="padding: 20px;">
-    <h2>Single Query Scraping</h2>
+    <h1>Single Query Email Scraping</h1>
+
     <form id="scrapeFormSingle">
-        <div style="margin-bottom: 15px;">
-            <label for="querySingle">Enter search query:</label>
+        <div class="form-group">
+            <label for="querySingle">Search Query:</label>
             <input type="text" id="querySingle" name="query"
-                   style="width: 100%; padding: 8px; margin-top: 5px;"
-                   placeholder="e.g., restaurants in New York" required>
+                   value='site:instagram.com "fitness Coach" "@gmail.com"'
+                   placeholder="Enter your search query">
         </div>
 
-        <button type="submit" style="padding: 10px 20px;">
-            Start Scraping
-        </button>
+        <button type="submit" class="btn">Start Scraping</button>
     </form>
 
-    <div id="resultSingle" style="display: none; margin-top: 20px;"></div>
-</div>
+    <div id="resultSingle" style="display: none;"></div>
+
 
 </body>
 </html>

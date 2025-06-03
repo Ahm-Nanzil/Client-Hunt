@@ -580,95 +580,25 @@ HTML_TEMPLATE = '''
         </div>
     </div>
     <!-- Inside main HTML template (e.g. templates/index.html) -->
-<script>
-// Global flag to track if modal forms are bound
-let modalFormsBound = false;
-
-function startScraping() {
-    // Redirect to scraping options page instead of directly scraping
-    window.location.href = '/scrape_options';
-}
-
-function showModal() {
-    // Load scrape_options.html content into modal
-    fetch('/scrape_options_modal')
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('modal-body').innerHTML = html;
-            document.getElementById('myModal').style.display = 'block';
-            
-            // Important: Bind form events after content is loaded
-            setTimeout(() => {
-                bindModalForms();
-            }, 100);
-        })
-        .catch(error => {
-            console.error('Error loading modal content:', error);
-        });
-}
-
-function closeModal() {
-    document.getElementById('myModal').style.display = 'none';
-    modalFormsBound = false; // Reset flag when closing
-}
-
-// Improved modal content loading function
-function loadModalContent(url) {
-    console.log('Loading modal content from:', url);
+    <script>
+    function bindModalForm() {
+        const form = document.getElementById('scrapeFormSingle');
+        if (!form) return;
     
-    fetch(url)
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('modal-body').innerHTML = html;
-            
-            // Wait for DOM to be ready, then bind forms
-            setTimeout(() => {
-                bindModalForms();
-            }, 150);
-        })
-        .catch(error => {
-            console.error('Error loading modal content:', error);
-            document.getElementById('modal-body').innerHTML = 
-                `<div class="alert alert-error">Error loading content: ${error.message}</div>`;
-        });
-}
-
-// Comprehensive form binding function
-function bindModalForms() {
-    console.log('Binding modal forms...');
-    
-    if (modalFormsBound) {
-        console.log('Forms already bound, skipping...');
-        return;
-    }
-
-    // Bind Single Query Form
-    const formSingle = document.getElementById('scrapeFormSingle');
-    if (formSingle) {
-        console.log('Binding single form');
-        
-        // Remove existing listeners
-        const newFormSingle = formSingle.cloneNode(true);
-        formSingle.parentNode.replaceChild(newFormSingle, formSingle);
-        
-        newFormSingle.addEventListener('submit', function(e) {
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Single form submitted');
-            
             const query = document.getElementById('querySingle').value;
             const resultDiv = document.getElementById('resultSingle');
-
+    
             if (!query.trim()) {
                 resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
                 resultDiv.style.display = 'block';
-                return false;
+                return;
             }
-
+    
             resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
             resultDiv.style.display = 'block';
-
+    
             fetch('/process_scrape', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -681,200 +611,141 @@ function bindModalForms() {
             .catch(error => {
                 resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
             });
-            
-            return false;
         });
     }
+    </script>
 
-    // Bind Multiple Query Form
-    const formMultiple = document.getElementById('scrapeForm');
-    if (formMultiple) {
-        console.log('Binding multiple form');
-        
-        // Remove existing listeners
-        const newFormMultiple = formMultiple.cloneNode(true);
-        formMultiple.parentNode.replaceChild(newFormMultiple, formMultiple);
-        
-        newFormMultiple.addEventListener('submit', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('Multiple form submitted');
-            
-            const queriesText = document.getElementById('queries').value;
-            const resultDiv = document.getElementById('result');
-            
-            if (!queriesText.trim()) {
-                resultDiv.innerHTML = '<div class="result error">Please enter at least one search query.</div>';
-                resultDiv.style.display = 'block';
-                return false;
-            }
-            
-            // Parse queries
-            const queries = queriesText.split('\\n').filter(q => q.trim() !== '');
-            if (queries.length === 0) {
-                resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
-                resultDiv.style.display = 'block';
-                return false;
-            }
-            
-            // Show loading
-            resultDiv.innerHTML = `<div class="result loading">Scraping ${queries.length} queries in progress... This may take several minutes.</div>`;
-            resultDiv.style.display = 'block';
-            
-            // Send request
-            fetch('/process_scrape', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    type: 'multiple',
-                    queries: queries
+    <script>
+        function startScraping() {
+            // Redirect to scraping options page instead of directly scraping
+            window.location.href = '/scrape_options';
+        }
+        function showModal() {
+            // Load scrape_options.html content into modal
+            fetch('/scrape_options_modal')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('modal-body').innerHTML = html;
+                    document.getElementById('myModal').style.display = 'block';
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    resultDiv.innerHTML = `<div class="result success">${data.message}</div>`;
-                } else {
-                    resultDiv.innerHTML = `<div class="result error">${data.message}</div>`;
-                }
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
-            });
-            
-            return false;
-        });
-    }
-
-    // Bind navigation buttons in modal
-    const singleBtn = document.getElementById('singleBtn');
-    const multipleBtn = document.getElementById('multipleBtn');
+                .catch(error => {
+                    console.error('Error loading modal content:', error);
+                });
+        }
+        
+        function loadModalContent(url) {
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('modal-body').innerHTML = html;
+                    bindModalForm();
+                    new bootstrap.Modal(document.getElementById('customModal')).show(); // 💡 Show modal
+                })
+                .catch(error => {
+                    console.error('Error loading content:', error);
+                });
+        }
+        
+        
+        function closeModal() {
+            document.getElementById('myModal').style.display = 'none';
+        }
+        
     
-    if (singleBtn) {
-        singleBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            loadModalContent('/scrape_single_modal');
-        });
-    }
-    
-    if (multipleBtn) {
-        multipleBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            loadModalContent('/scrape_multiple_modal');
-        });
-    }
-
-    modalFormsBound = true;
-    console.log('Modal forms binding completed');
-}
-
-// Close modal when clicking outside
-window.addEventListener('click', function(event) {
-    const modal = document.getElementById('myModal');
-    if (event.target === modal) {
-        closeModal();
-    }
-});
-
-function resetCampaign() {
-    if (confirm('Are you sure you want to reset the entire campaign?')) {
-        fetch('/reset')
-            .then(response => response.json())
-            .then(data => {
-                const resultDiv = document.getElementById('result');
-                resultDiv.style.display = 'block';
-                resultDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <h3>Campaign Reset</h3>
-                        <p>${data.message}</p>
-                    </div>
-                `;
-                updateProgress();
-                setTimeout(() => window.location.reload(), 2000);
-            });
-    }
-}
-
-function updateProgress() {
-    fetch('/progress')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('emails-sent').textContent = data.total_processed;
-            document.getElementById('total-clients').textContent = data.total_clients;
-
-            const overallProgress = (data.total_processed / Math.max(1, data.total_clients)) * 100;
-            document.getElementById('overall-progress').style.width = overallProgress + '%';
-            document.getElementById('overall-percentage').textContent = overallProgress.toFixed(1);
-
-            const batchProgress = (data.current_batch_progress / Math.max(1, data.batch_size)) * 100;
-            document.getElementById('batch-progress').style.width = batchProgress + '%';
-            document.getElementById('batch-percentage').textContent = batchProgress.toFixed(1);
-            document.getElementById('current-sent').textContent = data.current_batch_progress;
-
-            if (document.getElementById('sending-status').style.display === 'block') {
-                setTimeout(updateProgress, 2000);
+        function resetCampaign() {
+            if (confirm('Are you sure you want to reset the entire campaign?')) {
+                fetch('/reset')
+                    .then(response => response.json())
+                    .then(data => {
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <h3>Campaign Reset</h3>
+                                <p>${data.message}</p>
+                            </div>
+                        `;
+                        updateProgress();
+                        setTimeout(() => window.location.reload(), 2000);
+                    });
             }
-        })
-        .catch(error => console.error('Error fetching progress:', error));
-}
-
-// Main form handler for email sending (not modal related)
-document.getElementById('emailForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-
-    const sendButton = document.getElementById('sendBatch');
-    sendButton.disabled = true;
-    sendButton.textContent = 'Sending...';
-
-    document.getElementById('sending-status').style.display = 'block';
-    updateProgress();
-
-    fetch('/send', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'}
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('sending-status').style.display = 'none';
-
-        const resultDiv = document.getElementById('result');
-        resultDiv.style.display = 'block';
-
-        if (data.status === 'success') {
-            resultDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <h3>Batch Sent Successfully</h3>
-                    <p>Sent ${data.sent_count} emails</p>
-                    <p>Failed: ${data.failed_count || 0} emails</p>
-                    <p>Total processed: ${data.total_processed} out of ${data.total_clients}</p>
-                </div>
-            `;
-        } else {
-            resultDiv.innerHTML = `
-                <div class="alert alert-info">
-                    <h3>${data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped'}</h3>
-                    <p>${data.message}</p>
-                </div>
-            `;
         }
 
-        updateProgress();
-        sendButton.disabled = false;
-        sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
-    })
-    .catch(error => {
-        document.getElementById('sending-status').style.display = 'none';
-        sendButton.disabled = false;
-        sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
-    });
-});
+        function updateProgress() {
+            fetch('/progress')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('emails-sent').textContent = data.total_processed;
+                    document.getElementById('total-clients').textContent = data.total_clients;
 
-document.addEventListener('DOMContentLoaded', updateProgress);
-</script>
+                    const overallProgress = (data.total_processed / Math.max(1, data.total_clients)) * 100;
+                    document.getElementById('overall-progress').style.width = overallProgress + '%';
+                    document.getElementById('overall-percentage').textContent = overallProgress.toFixed(1);
 
+                    const batchProgress = (data.current_batch_progress / Math.max(1, data.batch_size)) * 100;
+                    document.getElementById('batch-progress').style.width = batchProgress + '%';
+                    document.getElementById('batch-percentage').textContent = batchProgress.toFixed(1);
+                    document.getElementById('current-sent').textContent = data.current_batch_progress;
+
+                    if (document.getElementById('sending-status').style.display === 'block') {
+                        setTimeout(updateProgress, 2000);
+                    }
+                })
+                .catch(error => console.error('Error fetching progress:', error));
+        }
+
+        document.getElementById('emailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const sendButton = document.getElementById('sendBatch');
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+
+            document.getElementById('sending-status').style.display = 'block';
+            updateProgress();
+
+            fetch('/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('sending-status').style.display = 'none';
+
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h3>Batch Sent Successfully</h3>
+                            <p>Sent ${data.sent_count} emails</p>
+                            <p>Failed: ${data.failed_count || 0} emails</p>
+                            <p>Total processed: ${data.total_processed} out of ${data.total_clients}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <h3>${data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped'}</h3>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
+                }
+
+                updateProgress();
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+            })
+            .catch(error => {
+                document.getElementById('sending-status').style.display = 'none';
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', updateProgress);
+    </script>
 </body>
 </html>
 '''
