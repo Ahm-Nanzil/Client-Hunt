@@ -582,10 +582,10 @@ HTML_TEMPLATE = '''
     <!-- Inside main HTML template (e.g. templates/index.html) -->
     <script>
     function bindModalForm() {
-        const form = document.getElementById('scrapeFormSingle');
-        if (!form) return;
+        const formSingle = document.getElementById('scrapeFormSingle');
+        if (!formSingle) return;
     
-        form.addEventListener('submit', function(e) {
+        formSingle.addEventListener('submit', function(e) {
             e.preventDefault();
             const query = document.getElementById('querySingle').value;
             const resultDiv = document.getElementById('resultSingle');
@@ -613,6 +613,56 @@ HTML_TEMPLATE = '''
             });
         });
     }
+    </script>
+    <script>
+        document.getElementById('scrapeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const queriesText = document.getElementById('queries').value;
+            const resultDiv = document.getElementById('result');
+
+            if (!queriesText.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter at least one search query.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            // Parse queries
+            const queries = queriesText.split('\n').filter(q => q.trim() !== '');
+
+            if (queries.length === 0) {
+                resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+
+            // Show loading
+            resultDiv.innerHTML = `<div class="result loading">Scraping ${queries.length} queries in progress... This may take several minutes.</div>`;
+            resultDiv.style.display = 'block';
+
+            // Send request
+            fetch('/process_scrape', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    type: 'multiple',
+                    queries: queries
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="result success">${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            });
+        });
     </script>
 
     <script>
