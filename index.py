@@ -582,13 +582,13 @@ HTML_TEMPLATE = '''
     <!-- Inside main HTML template (e.g. templates/index.html) -->
     <script>
     function bindModalForm() {
-        const form = document.getElementById('scrapeForm');
+        const form = document.getElementById('scrapeFormSingle');
         if (!form) return;
     
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            const query = document.getElementById('query').value;
-            const resultDiv = document.getElementById('result');
+            const query = document.getElementById('querySingle').value;
+            const resultDiv = document.getElementById('resultSingle');
     
             if (!query.trim()) {
                 resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
