@@ -582,6 +582,8 @@ HTML_TEMPLATE = '''
     <!-- Inside main HTML template (e.g. templates/index.html) -->
     <script>
     function bindModalForm() {
+    
+        if (document.getElementById('scrapeFormSingle')) {
         const formSingle = document.getElementById('scrapeFormSingle');
         if (!formSingle) return;
     
@@ -612,6 +614,10 @@ HTML_TEMPLATE = '''
                 resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
             });
         });
+        }
+        else {
+        console.log("formSingle isn't running");
+        }
     }
     </script>
 
