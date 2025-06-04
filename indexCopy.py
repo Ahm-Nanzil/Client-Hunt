@@ -20,6 +20,7 @@ import threading
 import gc
 from seleniumScrapping import scrape_emails
 
+
 # Configuration
 BATCH_SIZE = 1
 CSV_FILE = 'clients.csv'
@@ -350,14 +351,13 @@ class EmailCampaignManager:
 
 campaign_manager = EmailCampaignManager()
 
-# Fixed HTML Template with proper escaping
-HTML_TEMPLATE = '''<!DOCTYPE html>
+HTML_TEMPLATE = '''
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email Campaign Manager</title>
-    <link rel="icon" href="data:,">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -571,7 +571,6 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
 
         <p style="text-align: center; margin-top: 20px;">Signed by Ahm Nanzil</p>
     </div>
-
     <div id="myModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
@@ -580,106 +579,60 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             </div>
         </div>
     </div>
+    <!-- Inside main HTML template (e.g. templates/index.html) -->
+    <script>
+    function bindModalForm() {
+        const form = document.getElementById('scrapeFormSingle');
+        if (!form) return;
+    
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = document.getElementById('querySingle').value;
+            const resultDiv = document.getElementById('resultSingle');
+    
+            if (!query.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
+                resultDiv.style.display = 'block';
+                return;
+            }
+    
+            resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
+            resultDiv.style.display = 'block';
+    
+            fetch('/process_scrape', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'single', queries: [query] })
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultDiv.innerHTML = `<div class="result ${data.success ? 'success' : 'error'}">${data.message}</div>`;
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            });
+        });
+    }
+    </script>
 
     <script>
-        function bindModalForm() {
-            console.log("✅ Entered script");
-
-            const formSingle = document.getElementById('scrapeFormSingle');
-            const formMultiple = document.getElementById('scrapeFormMultiple');
-
-            if (formSingle) {
-                console.log("🟢 Binding Single Query Form");
-
-                formSingle.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    const query = document.getElementById('querySingle').value;
-                    const resultDiv = document.getElementById('resultSingle');
-
-                    if (!query.trim()) {
-                        resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
-                        resultDiv.style.display = 'block';
-                        return;
-                    }
-
-                    resultDiv.innerHTML = '<div class="result loading">Scraping in progress...</div>';
-                    resultDiv.style.display = 'block';
-
-                    fetch('/process_scrape', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ type: 'single', queries: [query] })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        resultDiv.innerHTML = '<div class="result ' + (data.success ? 'success' : 'error') + '">' + data.message + '</div>';
-                    })
-                    .catch(error => {
-                        resultDiv.innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
-                    });
-                });
-
-            } else if (formMultiple) {
-                console.log("🟢 Binding Multiple Query Form");
-
-                formMultiple.addEventListener('submit', function(e) {
-                    e.preventDefault();
-
-                    const queriesText = document.getElementById('queries') ? document.getElementById('queries').value : '';
-                    const resultDiv = document.getElementById('result');
-
-                    const queries = queriesText.split('\\n').filter(function(q) { return q.trim() !== ''; });
-
-                    if (queries.length === 0) {
-                        resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
-                        resultDiv.style.display = 'block';
-                        return;
-                    }
-
-                    resultDiv.innerHTML = '<div class="result loading">Scraping ' + queries.length + ' queries in progress...</div>';
-                    resultDiv.style.display = 'block';
-
-                    fetch('/process_scrape', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            type: 'multiple',
-                            queries: queries
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        resultDiv.innerHTML = '<div class="result ' + (data.success ? 'success' : 'error') + '">' + data.message + '</div>';
-                    })
-                    .catch(error => {
-                        resultDiv.innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
-                    });
-                });
-
-            } else {
-                console.warn("⚠️ No matching form found in modal.");
-            }
-        }
-
         function startScraping() {
+            // Redirect to scraping options page instead of directly scraping
             window.location.href = '/scrape_options';
         }
-
         function showModal() {
+            // Load scrape_options.html content into modal
             fetch('/scrape_options_modal')
                 .then(response => response.text())
                 .then(html => {
                     document.getElementById('modal-body').innerHTML = html;
                     document.getElementById('myModal').style.display = 'block';
-                    bindModalForm();
                 })
                 .catch(error => {
                     console.error('Error loading modal content:', error);
                 });
         }
-
+        
         function loadModalContent(url) {
             fetch(url)
                 .then(response => response.text())
@@ -691,11 +644,13 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     console.error('Error loading content:', error);
                 });
         }
-
+        
+        
         function closeModal() {
             document.getElementById('myModal').style.display = 'none';
         }
-
+        
+    
         function resetCampaign() {
             if (confirm('Are you sure you want to reset the entire campaign?')) {
                 fetch('/reset')
@@ -703,9 +658,14 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     .then(data => {
                         const resultDiv = document.getElementById('result');
                         resultDiv.style.display = 'block';
-                        resultDiv.innerHTML = '<div class="alert alert-success"><h3>Campaign Reset</h3><p>' + data.message + '</p></div>';
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <h3>Campaign Reset</h3>
+                                <p>${data.message}</p>
+                            </div>
+                        `;
                         updateProgress();
-                        setTimeout(function() { window.location.reload(); }, 2000);
+                        setTimeout(() => window.location.reload(), 2000);
                     });
             }
         }
@@ -755,9 +715,21 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 resultDiv.style.display = 'block';
 
                 if (data.status === 'success') {
-                    resultDiv.innerHTML = '<div class="alert alert-success"><h3>Batch Sent Successfully</h3><p>Sent ' + data.sent_count + ' emails</p><p>Failed: ' + (data.failed_count || 0) + ' emails</p><p>Total processed: ' + data.total_processed + ' out of ' + data.total_clients + '</p></div>';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <h3>Batch Sent Successfully</h3>
+                            <p>Sent ${data.sent_count} emails</p>
+                            <p>Failed: ${data.failed_count || 0} emails</p>
+                            <p>Total processed: ${data.total_processed} out of ${data.total_clients}</p>
+                        </div>
+                    `;
                 } else {
-                    resultDiv.innerHTML = '<div class="alert alert-info"><h3>' + (data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped') + '</h3><p>' + data.message + '</p></div>';
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <h3>${data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped'}</h3>
+                            <p>${data.message}</p>
+                        </div>
+                    `;
                 }
 
                 updateProgress();
@@ -774,7 +746,8 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         document.addEventListener('DOMContentLoaded', updateProgress);
     </script>
 </body>
-</html>'''
+</html>
+'''
 
 
 @app.route('/')
@@ -798,7 +771,6 @@ def index():
 @app.route('/progress')
 def get_progress():
     return jsonify(campaign_manager.get_current_progress())
-
 
 
 @app.route('/send', methods=['POST'])

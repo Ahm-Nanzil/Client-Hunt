@@ -1,27 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Email Scraping Options</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraping Options</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-        .option-card { border: 1px solid #ddd; padding: 20px; margin: 20px 0; border-radius: 8px; }
-        .btn { padding: 15px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px; }
-        .btn:hover { background: #0056b3; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .option-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background-color: #f9f9f9;
+            text-align: center;
+        }
+        .option-card h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .option-card p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .back-btn {
+            background-color: #6c757d;
+            margin-bottom: 20px;
+        }
+        .back-btn:hover {
+            background-color: #5a6268;
+        }
     </style>
 </head>
 <body>
-    <h1>Email Scraping Options</h1>
+    <div class="container">
+        <h1>Email Scraping Options</h1>
+        <p>Choose your preferred scraping method:</p>
 
-    <div class="option-card">
-        <h3>Single Query</h3>
-        <p>Scrape emails using one search query at a time.</p>
-        <button onclick="loadModalContent('/scrape_single_modal')">Single Query Scraping</button>
-    </div>
+        <div class="option-card">
+            <h3>🔍 Single Query Scraping</h3>
+            <p>Scrape emails from one search query at a time. Perfect for targeted searches.</p>
+            <button onclick="loadModalContent('/scrape_single_modal')">Single Query</button>
+        </div>
 
-    <div class="option-card">
-        <h3>Multiple Queries</h3>
-        <p>Scrape emails using multiple search queries in sequence.</p>
-        <button onclick="loadModalContent('/scrape_multiple_modal')">Multiple Query Scraping</button>
+        <div class="option-card">
+            <h3>📋 Multiple Query Scraping</h3>
+            <p>Scrape emails from multiple search queries simultaneously. Great for bulk operations.</p>
+            <button onclick="loadModalContent('/scrape_multiple_modal')">Multiple Queries</button>
+        </div>
     </div>
 </body>
 </html>
