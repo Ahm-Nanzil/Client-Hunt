@@ -582,10 +582,10 @@ HTML_TEMPLATE = '''
     <!-- Inside main HTML template (e.g. templates/index.html) -->
     <script>
     function bindModalForm() {
-        const form = document.getElementById('scrapeFormSingle');
-        if (!form) return;
+        const formSingle = document.getElementById('scrapeFormSingle');
+        if (!formSingle) return;
     
-        form.addEventListener('submit', function(e) {
+        formSingle.addEventListener('submit', function(e) {
             e.preventDefault();
             const query = document.getElementById('querySingle').value;
             const resultDiv = document.getElementById('resultSingle');
