@@ -582,16 +582,10 @@ HTML_TEMPLATE = '''
     <!-- Inside main HTML template (e.g. templates/index.html) -->
     <script>
     function bindModalForm() {
-                console.log (" enter in  script");
-
-        if (document.getElementById('scrapeFormSingle')) {
-        
-                    console.log (" enter in Single script");
-
-        const formSingle = document.getElementById('scrapeFormSingle');
-        if (!formSingle) return;
+        const form = document.getElementById('scrapeFormSingle');
+        if (!form) return;
     
-        formSingle.addEventListener('submit', function(e) {
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
             const query = document.getElementById('querySingle').value;
             const resultDiv = document.getElementById('resultSingle');
@@ -618,40 +612,6 @@ HTML_TEMPLATE = '''
                 resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
             });
         });
-        }
-        else {
-        console.log("formSingle isn't running");
-        const formSingle = document.getElementById('scrapeFormSingle');
-        if (!formSingle) return;
-    
-        formSingle.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const query = document.getElementById('querySingle').value;
-            const resultDiv = document.getElementById('resultSingle');
-    
-            if (!query.trim()) {
-                resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
-                resultDiv.style.display = 'block';
-                return;
-            }
-    
-            resultDiv.innerHTML = '<div class="result loading">Scraping in progress... This may take a few minutes.</div>';
-            resultDiv.style.display = 'block';
-    
-            fetch('/process_scrape', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'single', queries: [query] })
-            })
-            .then(response => response.json())
-            .then(data => {
-                resultDiv.innerHTML = `<div class="result ${data.success ? 'success' : 'error'}">${data.message}</div>`;
-            })
-            .catch(error => {
-                resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
-            });
-        });
-        }
     }
     </script>
 
@@ -679,7 +639,6 @@ HTML_TEMPLATE = '''
                 .then(html => {
                     document.getElementById('modal-body').innerHTML = html;
                     bindModalForm();
-                    new bootstrap.Modal(document.getElementById('customModal')).show(); // 💡 Show modal
                 })
                 .catch(error => {
                     console.error('Error loading content:', error);
