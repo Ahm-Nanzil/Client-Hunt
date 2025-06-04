@@ -597,13 +597,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     const resultDiv = document.getElementById('resultSingle');
 
                     if (!query.trim()) {
-                        resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
+                        resultDiv.className = 'result error';
+                        resultDiv.textContent = 'Error: ' + error.message;
                         resultDiv.style.display = 'block';
-                        return;
+
                     }
 
-                    resultDiv.innerHTML = '<div class="result loading">Scraping in progress...</div>';
+                    resultDiv.className = 'result loading';
+                    resultDiv.textContent = 'Scraping in progress...';
                     resultDiv.style.display = 'block';
+
 
                     fetch('/process_scrape', {
                         method: 'POST',
