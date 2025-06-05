@@ -9,6 +9,47 @@ import os
 import csv
 import pandas as pd
 from pathlib import Path
+from gtts import gTTS
+import pygame
+import tempfile
+
+
+def play_captcha_alert():
+    """Play a voice notification when CAPTCHA is detected"""
+    try:
+        print("🔊 Playing voice notification...")
+
+        # Generate speech
+        tts = gTTS(text="Attention! CAPTCHA detected. Please solve the captcha to continue!", lang='en')
+
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as f:
+            temp_file = f.name
+            tts.save(temp_file)
+
+        # Initialize pygame mixer
+        pygame.mixer.init()
+        pygame.mixer.music.load(temp_file)
+        pygame.mixer.music.play()
+
+        # Wait until playback finishes
+        while pygame.mixer.music.get_busy():
+            pygame.time.Clock().tick(10)
+
+        # Clean up
+        pygame.mixer.quit()
+        os.unlink(temp_file)
+
+        print("🔊 Voice notification completed.")
+
+    except Exception as e:
+        print(f"Could not play voice notification: {e}")
+        # Fallback to system beep if voice fails
+        try:
+            import winsound
+            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+        except:
+            print("Fallback beep also failed.")
 
 
 def load_existing_emails(csv_file="clients.csv"):
@@ -97,8 +138,11 @@ def search_and_save(search_query, existing_emails=None):
                 captcha_present = False
 
             if captcha_present:
-                print("\nCAPTCHA detected! Please solve it manually in the browser window.")
+                print("\n🚨 CAPTCHA DETECTED! 🚨")
+                play_captcha_alert()  # Play voice notification
+                print("Please solve it manually in the browser window.")
                 print("The script will wait up to 5 minutes for you to complete it.")
+
                 # Wait max 5 minutes for the search results container to appear
                 start_wait = time.time()
                 solved = False
@@ -107,13 +151,13 @@ def search_and_save(search_query, existing_emails=None):
                         # Check if search results container is back
                         if driver.find_element(By.ID, "search"):
                             solved = True
-                            print("CAPTCHA solved. Continuing...")
+                            print("✅ CAPTCHA solved. Continuing...")
                             break
                     except NoSuchElementException:
                         pass
                     time.sleep(3)
                 if not solved:
-                    print("Timeout waiting for CAPTCHA to be solved. Exiting.")
+                    print("❌ Timeout waiting for CAPTCHA to be solved. Exiting.")
                     break
 
             # Extract page text
