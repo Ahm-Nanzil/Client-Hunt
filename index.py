@@ -486,7 +486,9 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             to { transform: rotate(360deg); }
         }
         .modal {
-            display: none;
+            display: none; /* Keep this as none by default */
+            justify-content: center;
+            align-items: center;
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -495,15 +497,16 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             height: 100%;
             background-color: rgba(0,0,0,0.5);
         }
+        
         .modal-content {
             background-color: #fefefe;
-            margin: 15% auto;
             padding: 20px;
             border: 1px solid #888;
             width: 50%;
             border-radius: 8px;
             position: relative;
         }
+        
         .close {
             color: #aaa;
             float: right;
@@ -514,6 +517,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         .close:hover {
             color: black;
         }
+
     </style>
 </head>
 <body>
@@ -597,16 +601,13 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                     const resultDiv = document.getElementById('resultSingle');
 
                     if (!query.trim()) {
-                        resultDiv.className = 'result error';
-                        resultDiv.textContent = 'Error: ' + error.message;
+                        resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
                         resultDiv.style.display = 'block';
-
+                        return;
                     }
 
-                    resultDiv.className = 'result loading';
-                    resultDiv.textContent = 'Scraping in progress...';
+                    resultDiv.innerHTML = '<div class="result loading">Scraping in progress...</div>';
                     resultDiv.style.display = 'block';
-
 
                     fetch('/process_scrape', {
                         method: 'POST',
@@ -675,7 +676,7 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
                 .then(response => response.text())
                 .then(html => {
                     document.getElementById('modal-body').innerHTML = html;
-                    document.getElementById('myModal').style.display = 'block';
+                    document.getElementById('myModal').style.display = 'flex';
                     bindModalForm();
                 })
                 .catch(error => {
