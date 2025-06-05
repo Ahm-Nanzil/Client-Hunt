@@ -58,8 +58,8 @@ def load_existing_emails(csv_file="clients.csv"):
     if os.path.exists(csv_file):
         try:
             df = pd.read_csv(csv_file)
-            if 'email' in df.columns:
-                existing_emails = set(df['email'].dropna().str.lower())
+            if 'Email' in df.columns:
+                existing_emails = set(df['Email'].dropna().str.lower())
             print(f"Loaded {len(existing_emails)} existing emails from {csv_file}")
         except Exception as e:
             print(f"Error reading {csv_file}: {e}")
@@ -78,7 +78,7 @@ def save_new_emails_to_csv(new_emails, csv_file="clients.csv"):
     file_exists = os.path.exists(csv_file)
 
     # Prepare data
-    new_data = [{'email': email} for email in new_emails]
+    new_data = [{'Email': email} for email in new_emails]
 
     if file_exists:
         # Append to existing file
