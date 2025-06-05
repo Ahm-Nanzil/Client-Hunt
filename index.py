@@ -26,6 +26,7 @@ CSV_FILE = 'clients.csv'
 TRACKING_FILE = 'email_tracking.json'
 EMAIL_TEMPLATE = 'emailbody.html'
 SCRAPING_SCRIPT = 'seleniumScrapping.py'
+CONFIG_FILE = 'email_config.json'  # ADD THIS LINE
 
 # Flask app setup
 app = Flask(__name__)
@@ -38,19 +39,55 @@ logger = logging.getLogger(__name__)
 
 class EmailCampaignManager:
     def __init__(self):
-        self.batch_size = BATCH_SIZE
+        # Load configuration
+        config = self.load_email_config()
+
+        self.batch_size = config['batch_size']
         self.csv_file = CSV_FILE
         self.tracking_file = TRACKING_FILE
         self.email_template = EMAIL_TEMPLATE
 
-        # Email settings
-        self.smtp_server = 'smtp.gmail.com'
-        self.smtp_port = 587
-        self.email_user = 'ahmnanzil33@gmail.com'
-        self.email_password = 'hpitjdlzhhmnhurc'
-        self.sender_name = 'Web Development'
-        self.sender_email = 'ahmnanzil@web.service'
+        # Email settings from config
+        self.smtp_server = config['smtp_server']
+        self.smtp_port = config['smtp_port']
+        self.email_user = config['email_user']
+        self.email_password = config['email_password']
+        self.sender_name = config['sender_name']
+        self.sender_email = config['sender_email']
 
+    def load_email_config(self):
+        """Load email configuration from file or create default"""
+        default_config = {
+            'batch_size': 50,
+            'smtp_server': 'smtp.gmail.com',
+            'smtp_port': 587,
+            'email_user': 'ahmnanzil33@gmail.com',
+            'email_password': 'hpitjdlzhhmnhurc',
+            'sender_name': 'Web Development',
+            'sender_email': 'ahmnanzil@web.service'
+        }
+
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    config = json.load(f)
+                    # Merge with defaults for any missing keys
+                    for key, value in default_config.items():
+                        if key not in config:
+                            config[key] = value
+                    return config
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        # Save default config
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(default_config, f, indent=2)
+        return default_config
+
+    def save_email_config(self, config):
+        """Save email configuration to file"""
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
     def initialize_tracking_data(self):
         if os.path.exists(self.tracking_file):
             try:
@@ -550,15 +587,19 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
             <span id="status-text">Sending emails, please wait...</span>
             <p>Sent <span id="current-sent">0</span> of {{ batch_size }} emails</p>
         </div>
-
+        
+        <div id="result"></div>
+        
         <form id="emailForm">
             <button type="submit" id="sendBatch">Send Next Batch ({{ batch_size }} emails)</button>
             <button type="button" onclick="resetCampaign()" class="reset">Reset Campaign</button>
             <button type="button" onclick="startScraping()" id="scrapingBtn" class="scraping">Start Scraping</button>
             <button type="button" onclick="showModal()" id="modalBtn" class="scraping">Modal Show</button>
+            <button type="button" onclick="window.location.href='/config'" class="reset">⚙️ Settings</button>
+
         </form>
 
-        <div id="result"></div>
+        
 
         <div class="csv-info">
             <h3>CSV File Information</h3>
@@ -779,19 +820,124 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
     </script>
 </body>
 </html>'''
+CONFIG_TEMPLATE = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Configuration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 50px auto; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="email"], input[type="number"], input[type="password"] { 
+            width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; 
+        }
+        button { background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; width: 100%; }
+        button:hover { background-color: #45a049; }
+        .back-btn { background-color: #2196F3; margin-bottom: 20px; width: auto; }
+        .back-btn:hover { background-color: #1976D2; }
+        .alert { padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .alert-success { background-color: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
+        .alert-error { background-color: #f2dede; color: #a94442; border: 1px solid #ebccd1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button onclick="window.location.href='/'" class="back-btn">← Back to Dashboard</button>
 
+        <h1>Email Configuration</h1>
 
+        <div id="message"></div>
+
+        <form id="configForm">
+            <div class="form-group">
+                <label for="batch_size">Batch Size:</label>
+                <input type="number" id="batch_size" name="batch_size" value="{{ batch_size }}" min="1" required>
+            </div>
+
+            <div class="form-group">
+                <label for="smtp_server">SMTP Server:</label>
+                <input type="text" id="smtp_server" name="smtp_server" value="{{ smtp_server }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="smtp_port">SMTP Port:</label>
+                <input type="number" id="smtp_port" name="smtp_port" value="{{ smtp_port }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email_user">Email Username:</label>
+                <input type="email" id="email_user" name="email_user" value="{{ email_user }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email_password">Email Password:</label>
+                <input type="password" id="email_password" name="email_password" value="{{ email_password }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="sender_name">Sender Name:</label>
+                <input type="text" id="sender_name" name="sender_name" value="{{ sender_name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="sender_email">Sender Email Display:</label>
+                <input type="email" id="sender_email" name="sender_email" value="{{ sender_email }}" required>
+            </div>
+
+            <button type="submit">Update Configuration</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('configForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+
+            fetch('/update_config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                const messageDiv = document.getElementById('message');
+                if (result.success) {
+                    messageDiv.innerHTML = '<div class="alert alert-success">' + result.message + '</div>';
+                    setTimeout(() => window.location.href = '/', 2000);
+                } else {
+                    messageDiv.innerHTML = '<div class="alert alert-error">' + result.message + '</div>';
+                }
+            })
+            .catch(error => {
+                document.getElementById('message').innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+            });
+        });
+    </script>
+</body>
+</html>'''
+
+@app.route('/')
 @app.route('/')
 def index():
     tracking = campaign_manager.initialize_tracking_data()
     total_rows = campaign_manager.count_total_rows() - 1
+    config = campaign_manager.load_email_config()  # ADD THIS LINE
 
     overall_progress = round((tracking['total_processed'] / max(1, total_rows)) * 100, 1)
-    batch_progress = round((tracking['current_batch_progress'] / max(1, BATCH_SIZE)) * 100, 1)
+    batch_progress = round((tracking['current_batch_progress'] / max(1, config['batch_size'])) * 100, 1)  # USE config['batch_size']
 
     return render_template_string(HTML_TEMPLATE,
                                   total_clients=total_rows,
-                                  batch_size=BATCH_SIZE,
+                                  batch_size=config['batch_size'],  # USE config['batch_size']
                                   emails_sent=tracking['total_processed'],
                                   next_batch_start=tracking['current_index'],
                                   last_batch_time=tracking['last_batch_time'] or 'Never',
@@ -887,6 +1033,60 @@ def scrape_single_modal():
 def scrape_multiple_modal():
     """Route to return scrape_multiple.html content for modal"""
     return render_template('scrape_multiple.html')
+
+
+@app.route('/config')
+def config():
+    """Show configuration page"""
+    config = campaign_manager.load_email_config()
+    return render_template_string(CONFIG_TEMPLATE, **config)
+
+
+@app.route('/update_config', methods=['POST'])
+def update_config():
+    """Update email configuration"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['batch_size', 'smtp_server', 'smtp_port', 'email_user',
+                           'email_password', 'sender_name', 'sender_email']
+
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'success': False, 'message': f'Missing required field: {field}'})
+
+        # Validate batch_size is a positive integer
+        try:
+            data['batch_size'] = int(data['batch_size'])
+            if data['batch_size'] <= 0:
+                raise ValueError()
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Batch size must be a positive integer'})
+
+        # Validate smtp_port is an integer
+        try:
+            data['smtp_port'] = int(data['smtp_port'])
+        except ValueError:
+            return jsonify({'success': False, 'message': 'SMTP port must be an integer'})
+
+        # Save configuration
+        campaign_manager.save_email_config(data)
+
+        # Update campaign manager instance
+        campaign_manager.batch_size = data['batch_size']
+        campaign_manager.smtp_server = data['smtp_server']
+        campaign_manager.smtp_port = data['smtp_port']
+        campaign_manager.email_user = data['email_user']
+        campaign_manager.email_password = data['email_password']
+        campaign_manager.sender_name = data['sender_name']
+        campaign_manager.sender_email = data['sender_email']
+
+        return jsonify({'success': True, 'message': 'Configuration updated successfully'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error updating configuration: {str(e)}'})
+
 
 if __name__ == '__main__':
     if not os.path.exists(CSV_FILE):
