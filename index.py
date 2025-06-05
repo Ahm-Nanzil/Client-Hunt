@@ -28,7 +28,6 @@ EMAIL_TEMPLATE = 'emailbody.html'
 SCRAPING_SCRIPT = 'seleniumScrapping.py'
 CONFIG_FILE = 'email_config.json'  # ADD THIS LINE
 
-
 # Flask app setup
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
@@ -628,578 +627,197 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
     </div>
 
     <script>
-    // Global variables for scraping status
-    let scrapingInProgress = false;
-    let captchaCheckInterval = null;
+        function bindModalForm() {
+            console.log("✅ Entered script");
 
-    // Audio notification functions
-    function playNotificationSound(type = 'captcha') {
-        try {
-            // Create audio elements dynamically if they don't exist
-            let audioId = type === 'captcha' ? 'captchaSound' : 'successSound';
-            let audio = document.getElementById(audioId);
-            
-            if (!audio) {
-                audio = document.createElement('audio');
-                audio.id = audioId;
-                audio.preload = 'auto';
-                
-                // Add multiple source formats for better compatibility
-                const mp3Source = document.createElement('source');
-                mp3Source.src = `/static/notification.mp3`;
-                mp3Source.type = 'audio/mpeg';
-                
-                const wavSource = document.createElement('source');
-                wavSource.src = `/static/notification.wav`;
-                wavSource.type = 'audio/wav';
-                
-                audio.appendChild(mp3Source);
-                audio.appendChild(wavSource);
-                document.body.appendChild(audio);
-            }
-            
-            audio.currentTime = 0;
-            audio.play().catch(e => {
-                console.warn('Could not play audio:', e);
-                // Fallback: Browser notification
-                showBrowserNotification(type === 'captcha' ? 'CAPTCHA Detected!' : 'Scraping Complete!');
-                // System beep fallback
-                for(let i = 0; i < 3; i++) {
-                    setTimeout(() => console.log('\x07'), i * 300);
-                }
-            });
-        } catch (e) {
-            console.error('Error playing sound:', e);
-            showBrowserNotification(type === 'captcha' ? 'CAPTCHA Detected!' : 'Scraping Complete!');
-        }
-    }
+            const formSingle = document.getElementById('scrapeFormSingle');
+            const formMultiple = document.getElementById('scrapeFormMultiple');
 
-    function showBrowserNotification(message, type = 'info') {
-        // Request permission if not granted
-        if ('Notification' in window) {
-            if (Notification.permission === 'granted') {
-                const notification = new Notification('Email Scraper Alert', {
-                    body: message,
-                    icon: '/static/icon.png',
-                    badge: '/static/badge.png',
-                    requireInteraction: type === 'captcha', // Keep CAPTCHA notifications visible
-                    tag: 'scraper-notification'
-                });
-                
-                // Auto-close success notifications after 5 seconds
-                if (type === 'success') {
-                    setTimeout(() => notification.close(), 5000);
-                }
-            } else if (Notification.permission !== 'denied') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        showBrowserNotification(message, type);
+            if (formSingle) {
+                console.log("🟢 Binding Single Query Form");
+
+                formSingle.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const query = document.getElementById('querySingle').value;
+                    const resultDiv = document.getElementById('resultSingle');
+
+                    if (!query.trim()) {
+                        resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
+                        resultDiv.style.display = 'block';
+                        return;
                     }
-                });
-            }
-        }
-        
-        // Also show in-page notification
-        showInPageNotification(message, type);
-    }
 
-    function showInPageNotification(message, type = 'info') {
-        // Remove existing notifications
-        const existingNotification = document.getElementById('captchaNotificationBar');
-        if (existingNotification) {
-            existingNotification.remove();
-        }
-        
-        // Create notification bar
-        const notificationBar = document.createElement('div');
-        notificationBar.id = 'captchaNotificationBar';
-        notificationBar.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: ${type === 'captcha' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#339af0'};
-            color: white;
-            padding: 15px;
-            text-align: center;
-            font-weight: bold;
-            z-index: 10000;
-            animation: slideDown 0.5s ease-out;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        `;
-        
-        // Add animation keyframes if not already added
-        if (!document.getElementById('notificationStyles')) {
-            const style = document.createElement('style');
-            style.id = 'notificationStyles';
-            style.textContent = `
-                @keyframes slideDown {
-                    from { transform: translateY(-100%); }
-                    to { transform: translateY(0); }
-                }
-                @keyframes pulse {
-                    0% { opacity: 1; }
-                    50% { opacity: 0.7; }
-                    100% { opacity: 1; }
-                }
-                .pulsing {
-                    animation: pulse 1.5s infinite;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        const icon = type === 'captcha' ? '🚨' : type === 'success' ? '✅' : 'ℹ️';
-        notificationBar.innerHTML = `${icon} ${message} ${icon}`;
-        
-        if (type === 'captcha') {
-            notificationBar.classList.add('pulsing');
-        }
-        
-        document.body.appendChild(notificationBar);
-        
-        // Auto-hide non-CAPTCHA notifications
-        if (type !== 'captcha') {
-            setTimeout(() => {
-                if (notificationBar.parentNode) {
-                    notificationBar.remove();
-                }
-            }, 5000);
-        }
-        
-        return notificationBar;
-    }
+                    resultDiv.innerHTML = '<div class="result loading">Scraping in progress...</div>';
+                    resultDiv.style.display = 'block';
 
-    function hideInPageNotification() {
-        const notificationBar = document.getElementById('captchaNotificationBar');
-        if (notificationBar) {
-            notificationBar.style.animation = 'slideUp 0.5s ease-in';
-            setTimeout(() => {
-                if (notificationBar.parentNode) {
-                    notificationBar.remove();
-                }
-            }, 500);
-        }
-    }
-
-    function updateScrapingStatus(status, message = '') {
-        const statusElements = document.querySelectorAll('.scraping-status, #statusIndicator');
-        const submitButtons = document.querySelectorAll('#sendBatch, .scrape-submit-btn, button[type="submit"]');
-        
-        statusElements.forEach(element => {
-            switch(status) {
-                case 'idle':
-                    element.textContent = '⭕';
-                    element.classList.remove('spinning', 'pulsing');
-                    break;
-                case 'scraping':
-                    element.textContent = '🔄';
-                    element.classList.add('spinning');
-                    break;
-                case 'captcha':
-                    element.textContent = '🚨';
-                    element.classList.add('pulsing');
-                    break;
-                case 'success':
-                    element.textContent = '✅';
-                    element.classList.remove('spinning', 'pulsing');
-                    break;
-                case 'error':
-                    element.textContent = '❌';
-                    element.classList.remove('spinning', 'pulsing');
-                    break;
-            }
-        });
-        
-        submitButtons.forEach(button => {
-            if (status === 'scraping' || status === 'captcha') {
-                button.disabled = true;
-                button.textContent = status === 'captcha' ? 'Waiting for CAPTCHA...' : 'Scraping...';
-            } else {
-                button.disabled = false;
-                button.textContent = button.getAttribute('data-original-text') || 'Start Scraping';
-            }
-        });
-    }
-
-    // Enhanced CAPTCHA monitoring
-    function startCaptchaMonitoring() {
-        if (captchaCheckInterval) {
-            clearInterval(captchaCheckInterval);
-        }
-        
-        captchaCheckInterval = setInterval(() => {
-            if (scrapingInProgress) {
-                // Check backend for CAPTCHA status
-                fetch('/check_captcha_status')
+                    fetch('/process_scrape', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'single', queries: [query] })
+                    })
                     .then(response => response.json())
                     .then(data => {
-                        if (data.captcha_detected) {
-                            updateScrapingStatus('captcha');
-                            showBrowserNotification('🚨 CAPTCHA detected! Please solve it in the scraping window.', 'captcha');
-                            playNotificationSound('captcha');
-                        } else if (data.captcha_solved) {
-                            updateScrapingStatus('scraping');
-                            hideInPageNotification();
-                            showBrowserNotification('✅ CAPTCHA solved! Scraping resumed.', 'success');
-                            playNotificationSound('success');
-                        }
+                        resultDiv.innerHTML = '<div class="result ' + (data.success ? 'success' : 'error') + '">' + data.message + '</div>';
                     })
                     .catch(error => {
-                        console.error('Error checking CAPTCHA status:', error);
+                        resultDiv.innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
+                    });
+                });
+
+            } else if (formMultiple) {
+                console.log("🟢 Binding Multiple Query Form");
+
+                formMultiple.addEventListener('submit', function(e) {
+                    e.preventDefault();
+
+                    const queriesText = document.getElementById('queries') ? document.getElementById('queries').value : '';
+                    const resultDiv = document.getElementById('result');
+
+                    const queries = queriesText.split('\\n').filter(function(q) { return q.trim() !== ''; });
+
+                    if (queries.length === 0) {
+                        resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
+                        resultDiv.style.display = 'block';
+                        return;
+                    }
+
+                    resultDiv.innerHTML = '<div class="result loading">Scraping ' + queries.length + ' queries in progress...</div>';
+                    resultDiv.style.display = 'block';
+
+                    fetch('/process_scrape', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            type: 'multiple',
+                            queries: queries
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        resultDiv.innerHTML = '<div class="result ' + (data.success ? 'success' : 'error') + '">' + data.message + '</div>';
+                    })
+                    .catch(error => {
+                        resultDiv.innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
+                    });
+                });
+
+            } else {
+                console.warn("⚠️ No matching form found in modal.");
+            }
+        }
+
+        function startScraping() {
+            window.location.href = '/scrape_options';
+        }
+
+        function showModal() {
+            fetch('/scrape_options_modal')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('modal-body').innerHTML = html;
+                    document.getElementById('myModal').style.display = 'flex';
+                    bindModalForm();
+                })
+                .catch(error => {
+                    console.error('Error loading modal content:', error);
+                });
+        }
+
+        function loadModalContent(url) {
+            fetch(url)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('modal-body').innerHTML = html;
+                    bindModalForm();
+                })
+                .catch(error => {
+                    console.error('Error loading content:', error);
+                });
+        }
+
+        function closeModal() {
+            document.getElementById('myModal').style.display = 'none';
+        }
+
+        function resetCampaign() {
+            if (confirm('Are you sure you want to reset the entire campaign?')) {
+                fetch('/reset')
+                    .then(response => response.json())
+                    .then(data => {
+                        const resultDiv = document.getElementById('result');
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = '<div class="alert alert-success"><h3>Campaign Reset</h3><p>' + data.message + '</p></div>';
+                        updateProgress();
+                        setTimeout(function() { window.location.reload(); }, 2000);
                     });
             }
-        }, 3000); // Check every 3 seconds
-    }
-
-    function stopCaptchaMonitoring() {
-        if (captchaCheckInterval) {
-            clearInterval(captchaCheckInterval);
-            captchaCheckInterval = null;
         }
-    }
 
-    function bindModalForm() {
-        console.log("✅ Entered script");
-
-        const formSingle = document.getElementById('scrapeFormSingle');
-        const formMultiple = document.getElementById('scrapeFormMultiple');
-
-        if (formSingle) {
-            console.log("🟢 Binding Single Query Form");
-
-            // Store original button text
-            const submitBtn = formSingle.querySelector('button[type="submit"]');
-            if (submitBtn && !submitBtn.getAttribute('data-original-text')) {
-                submitBtn.setAttribute('data-original-text', submitBtn.textContent);
-            }
-
-            formSingle.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                if (scrapingInProgress) {
-                    alert('Scraping already in progress! Please wait for it to complete.');
-                    return;
-                }
-                
-                const query = document.getElementById('querySingle').value;
-                const resultDiv = document.getElementById('resultSingle');
-
-                if (!query.trim()) {
-                    resultDiv.innerHTML = '<div class="result error">Please enter a search query.</div>';
-                    resultDiv.style.display = 'block';
-                    return;
-                }
-
-                // Start scraping process
-                scrapingInProgress = true;
-                updateScrapingStatus('scraping');
-                startCaptchaMonitoring();
-                
-                resultDiv.innerHTML = '<div class="result loading">🔍 Scraping in progress... Please wait and watch for CAPTCHA alerts!</div>';
-                resultDiv.style.display = 'block';
-
-                fetch('/process_scrape', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'single', queries: [query] })
-                })
+        function updateProgress() {
+            fetch('/progress')
                 .then(response => response.json())
                 .then(data => {
-                    // Scraping completed
-                    scrapingInProgress = false;
-                    stopCaptchaMonitoring();
-                    hideInPageNotification();
-                    
-                    const success = data.success;
-                    updateScrapingStatus(success ? 'success' : 'error');
-                    
-                    const resultClass = success ? 'success' : 'error';
-                    const resultIcon = success ? '✅' : '❌';
-                    
-                    resultDiv.innerHTML = `<div class="result ${resultClass}">${resultIcon} ${data.message}</div>`;
-                    
-                    // Show completion notification
-                    const notificationMessage = success ? 
-                        `Scraping completed! Found emails: ${data.email_count || 'N/A'}` : 
-                        `Scraping failed: ${data.message}`;
-                    
-                    showBrowserNotification(notificationMessage, success ? 'success' : 'error');
-                    
-                    if (success) {
-                        playNotificationSound('success');
+                    document.getElementById('emails-sent').textContent = data.total_processed;
+                    document.getElementById('total-clients').textContent = data.total_clients;
+
+                    const overallProgress = (data.total_processed / Math.max(1, data.total_clients)) * 100;
+                    document.getElementById('overall-progress').style.width = overallProgress + '%';
+                    document.getElementById('overall-percentage').textContent = overallProgress.toFixed(1);
+
+                    const batchProgress = (data.current_batch_progress / Math.max(1, data.batch_size)) * 100;
+                    document.getElementById('batch-progress').style.width = batchProgress + '%';
+                    document.getElementById('batch-percentage').textContent = batchProgress.toFixed(1);
+                    document.getElementById('current-sent').textContent = data.current_batch_progress;
+
+                    if (document.getElementById('sending-status').style.display === 'block') {
+                        setTimeout(updateProgress, 2000);
                     }
                 })
-                .catch(error => {
-                    scrapingInProgress = false;
-                    stopCaptchaMonitoring();
-                    hideInPageNotification();
-                    updateScrapingStatus('error');
-                    
-                    resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
-                    showBrowserNotification(`Scraping error: ${error.message}`, 'error');
-                });
-            });
-
-        } else if (formMultiple) {
-            console.log("🟢 Binding Multiple Query Form");
-
-            // Store original button text
-            const submitBtn = formMultiple.querySelector('button[type="submit"]');
-            if (submitBtn && !submitBtn.getAttribute('data-original-text')) {
-                submitBtn.setAttribute('data-original-text', submitBtn.textContent);
-            }
-
-            formMultiple.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                if (scrapingInProgress) {
-                    alert('Scraping already in progress! Please wait for it to complete.');
-                    return;
-                }
-
-                const queriesText = document.getElementById('queries') ? document.getElementById('queries').value : '';
-                const resultDiv = document.getElementById('result');
-
-                const queries = queriesText.split('\\n').filter(function(q) { return q.trim() !== ''; });
-
-                if (queries.length === 0) {
-                    resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
-                    resultDiv.style.display = 'block';
-                    return;
-                }
-
-                // Start scraping process
-                scrapingInProgress = true;
-                updateScrapingStatus('scraping');
-                startCaptchaMonitoring();
-
-                resultDiv.innerHTML = `<div class="result loading">🔍 Scraping ${queries.length} queries in progress... Watch for CAPTCHA alerts!</div>`;
-                resultDiv.style.display = 'block';
-
-                fetch('/process_scrape', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        type: 'multiple',
-                        queries: queries
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Scraping completed
-                    scrapingInProgress = false;
-                    stopCaptchaMonitoring();
-                    hideInPageNotification();
-                    
-                    const success = data.success;
-                    updateScrapingStatus(success ? 'success' : 'error');
-                    
-                    const resultClass = success ? 'success' : 'error';
-                    const resultIcon = success ? '✅' : '❌';
-                    
-                    resultDiv.innerHTML = `<div class="result ${resultClass}">${resultIcon} ${data.message}</div>`;
-                    
-                    // Show completion notification
-                    const notificationMessage = success ? 
-                        `Multi-query scraping completed! Total emails: ${data.email_count || 'N/A'}` : 
-                        `Multi-query scraping failed: ${data.message}`;
-                    
-                    showBrowserNotification(notificationMessage, success ? 'success' : 'error');
-                    
-                    if (success) {
-                        playNotificationSound('success');
-                    }
-                })
-                .catch(error => {
-                    scrapingInProgress = false;
-                    stopCaptchaMonitoring();
-                    hideInPageNotification();
-                    updateScrapingStatus('error');
-                    
-                    resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
-                    showBrowserNotification(`Multi-query scraping error: ${error.message}`, 'error');
-                });
-            });
-
-        } else {
-            console.warn("⚠️ No matching form found in modal.");
+                .catch(error => console.error('Error fetching progress:', error));
         }
-    }
 
-    function startScraping() {
-        window.location.href = '/scrape_options';
-    }
+        document.getElementById('emailForm').addEventListener('submit', function(e) {
+            e.preventDefault();
 
-    function showModal() {
-        fetch('/scrape_options_modal')
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('modal-body').innerHTML = html;
-                document.getElementById('myModal').style.display = 'flex';
-                bindModalForm();
-                
-                // Request notification permission when modal opens
-                if ('Notification' in window && Notification.permission === 'default') {
-                    Notification.requestPermission();
-                }
+            const sendButton = document.getElementById('sendBatch');
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+
+            document.getElementById('sending-status').style.display = 'block';
+            updateProgress();
+
+            fetch('/send', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
             })
-            .catch(error => {
-                console.error('Error loading modal content:', error);
-            });
-    }
-
-    function loadModalContent(url) {
-        fetch(url)
-            .then(response => response.text())
-            .then(html => {
-                document.getElementById('modal-body').innerHTML = html;
-                bindModalForm();
-            })
-            .catch(error => {
-                console.error('Error loading content:', error);
-            });
-    }
-
-    function closeModal() {
-        document.getElementById('myModal').style.display = 'none';
-        
-        // Stop monitoring when modal closes
-        if (scrapingInProgress) {
-            const confirmClose = confirm('Scraping is in progress. Are you sure you want to close? The scraping will continue in the background.');
-            if (!confirmClose) {
-                document.getElementById('myModal').style.display = 'flex';
-                return;
-            }
-        }
-        stopCaptchaMonitoring();
-    }
-
-    function resetCampaign() {
-        if (confirm('Are you sure you want to reset the entire campaign?')) {
-            fetch('/reset')
-                .then(response => response.json())
-                .then(data => {
-                    const resultDiv = document.getElementById('result');
-                    resultDiv.style.display = 'block';
-                    resultDiv.innerHTML = '<div class="alert alert-success"><h3>Campaign Reset</h3><p>' + data.message + '</p></div>';
-                    updateProgress();
-                    setTimeout(function() { window.location.reload(); }, 2000);
-                });
-        }
-    }
-
-    function updateProgress() {
-        fetch('/progress')
             .then(response => response.json())
             .then(data => {
-                document.getElementById('emails-sent').textContent = data.total_processed;
-                document.getElementById('total-clients').textContent = data.total_clients;
+                document.getElementById('sending-status').style.display = 'none';
 
-                const overallProgress = (data.total_processed / Math.max(1, data.total_clients)) * 100;
-                document.getElementById('overall-progress').style.width = overallProgress + '%';
-                document.getElementById('overall-percentage').textContent = overallProgress.toFixed(1);
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
 
-                const batchProgress = (data.current_batch_progress / Math.max(1, data.batch_size)) * 100;
-                document.getElementById('batch-progress').style.width = batchProgress + '%';
-                document.getElementById('batch-percentage').textContent = batchProgress.toFixed(1);
-                document.getElementById('current-sent').textContent = data.current_batch_progress;
-
-                if (document.getElementById('sending-status').style.display === 'block') {
-                    setTimeout(updateProgress, 2000);
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = '<div class="alert alert-success"><h3>Batch Sent Successfully</h3><p>Sent ' + data.sent_count + ' emails</p><p>Failed: ' + (data.failed_count || 0) + ' emails</p><p>Total processed: ' + data.total_processed + ' out of ' + data.total_clients + '</p></div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="alert alert-info"><h3>' + (data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped') + '</h3><p>' + data.message + '</p></div>';
                 }
+
+                updateProgress();
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
             })
-            .catch(error => console.error('Error fetching progress:', error));
-    }
-
-    // Enhanced email form submission
-    document.getElementById('emailForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const sendButton = document.getElementById('sendBatch');
-        sendButton.disabled = true;
-        sendButton.textContent = 'Sending...';
-
-        document.getElementById('sending-status').style.display = 'block';
-        updateProgress();
-
-        fetch('/send', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'}
-        })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('sending-status').style.display = 'none';
-
-            const resultDiv = document.getElementById('result');
-            resultDiv.style.display = 'block';
-
-            if (data.status === 'success') {
-                resultDiv.innerHTML = '<div class="alert alert-success"><h3>Batch Sent Successfully</h3><p>Sent ' + data.sent_count + ' emails</p><p>Failed: ' + (data.failed_count || 0) + ' emails</p><p>Total processed: ' + data.total_processed + ' out of ' + data.total_clients + '</p></div>';
-                showBrowserNotification(`Email batch sent successfully! Sent: ${data.sent_count}`, 'success');
-            } else {
-                resultDiv.innerHTML = '<div class="alert alert-info"><h3>' + (data.status === 'reset' ? 'Campaign Reset' : 'Batch Skipped') + '</h3><p>' + data.message + '</p></div>';
-            }
-
-            updateProgress();
-            sendButton.disabled = false;
-            sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
-        })
-        .catch(error => {
-            document.getElementById('sending-status').style.display = 'none';
-            sendButton.disabled = false;
-            sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
-            showBrowserNotification('Email sending failed: ' + error.message, 'error');
+            .catch(error => {
+                document.getElementById('sending-status').style.display = 'none';
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send Next Batch ({{ batch_size }} emails)';
+            });
         });
-    });
 
-    // Initialize on DOM load
-    document.addEventListener('DOMContentLoaded', function() {
-        updateProgress();
-        
-        // Request notification permission
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-        
-        // Add spinning animation styles
-        if (!document.getElementById('scrapingStyles')) {
-            const style = document.createElement('style');
-            style.id = 'scrapingStyles';
-            style.textContent = `
-                .spinning {
-                    animation: spin 1s linear infinite;
-                }
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    });
-
-    // Clean up on page unload
-    window.addEventListener('beforeunload', function() {
-        stopCaptchaMonitoring();
-        hideInPageNotification();
-    });
-
-    // Expose functions for testing/debugging
-    window.testCaptchaAlert = function() {
-        updateScrapingStatus('captcha');
-        showBrowserNotification('🚨 TEST: CAPTCHA detected!', 'captcha');
-        playNotificationSound('captcha');
-    };
-
-    window.testSuccessAlert = function() {
-        updateScrapingStatus('success');
-        showBrowserNotification('✅ TEST: Scraping completed!', 'success');
-        playNotificationSound('success');
-    };
-</script>
+        document.addEventListener('DOMContentLoaded', updateProgress);
+    </script>
 </body>
 </html>'''
 CONFIG_TEMPLATE = '''<!DOCTYPE html>
