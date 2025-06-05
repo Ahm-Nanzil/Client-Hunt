@@ -9,6 +9,149 @@ import os
 import csv
 import pandas as pd
 from pathlib import Path
+import threading
+import pygame
+import sys
+
+# Initialize pygame mixer for audio
+pygame.mixer.init()
+
+
+def play_notification_sound(sound_file="notification.wav", repeat=3):
+    """Play notification sound when CAPTCHA is detected"""
+    try:
+        if os.path.exists(sound_file):
+            sound = pygame.mixer.Sound(sound_file)
+            for _ in range(repeat):
+                sound.play()
+                time.sleep(1)
+        else:
+            # If no custom sound file, use system beep
+            for _ in range(repeat):
+                print('\a')  # System beep
+                time.sleep(0.5)
+    except Exception as e:
+        print(f"Error playing notification sound: {e}")
+        # Fallback to system beep
+        for _ in range(repeat):
+            print('\a')
+            time.sleep(0.5)
+
+
+def send_notification_to_frontend(message="CAPTCHA Detected!"):
+    """Send notification to frontend (you can expand this for WebSocket)"""
+    print(f"🔔 NOTIFICATION: {message}")
+    # Here you could implement WebSocket or Server-Sent Events
+    # to notify the frontend in real-time
+
+
+def detect_captcha_advanced(driver):
+    """Enhanced CAPTCHA detection with multiple patterns"""
+    captcha_indicators = [
+        # reCAPTCHA patterns
+        "iframe[src*='recaptcha']",
+        "div[class*='recaptcha']",
+        ".g-recaptcha",
+
+        # Common CAPTCHA text patterns
+        "//*[contains(text(),'Select all images')]",
+        "//*[contains(text(),\"I'm not a robot\")]",
+        "//*[contains(text(),'Verify you are human')]",
+        "//*[contains(text(),'Complete the security check')]",
+        "//*[contains(text(),'Please confirm you are human')]",
+
+        # hCaptcha patterns
+        "iframe[src*='hcaptcha']",
+        "div[class*='hcaptcha']",
+
+        # Cloudflare patterns
+        "//*[contains(text(),'Checking your browser')]",
+        "//*[contains(text(),'Please wait while we verify')]",
+        "div[class*='cf-browser-verification']",
+
+        # General CAPTCHA patterns
+        "input[name*='captcha']",
+        "img[src*='captcha']",
+        "//*[contains(text(),'security code')]",
+        "//*[contains(text(),'verification code')]"
+    ]
+
+    for indicator in captcha_indicators:
+        try:
+            if indicator.startswith("//"):
+                # XPath selector
+                elements = driver.find_elements(By.XPATH, indicator)
+            else:
+                # CSS selector
+                elements = driver.find_elements(By.CSS_SELECTOR, indicator)
+
+            if elements:
+                return True, indicator
+        except Exception:
+            continue
+
+    return False, None
+
+
+def wait_for_captcha_resolution(driver, max_wait_time=600):  # 10 minutes max
+    """Wait for CAPTCHA to be solved with enhanced monitoring"""
+    print(f"\n{'=' * 50}")
+    print("🚨 CAPTCHA DETECTED! 🚨")
+    print("Please solve the CAPTCHA manually in the browser window.")
+    print(f"The script will wait up to {max_wait_time // 60} minutes for you to complete it.")
+    print("💡 Tip: Look for checkboxes, image selections, or verification prompts.")
+    print(f"{'=' * 50}\n")
+
+    # Play notification sound in a separate thread
+    sound_thread = threading.Thread(target=play_notification_sound)
+    sound_thread.daemon = True
+    sound_thread.start()
+
+    # Send notification to frontend
+    send_notification_to_frontend("CAPTCHA detected! Please solve it manually.")
+
+    start_wait = time.time()
+    check_interval = 3  # Check every 3 seconds
+
+    while time.time() - start_wait < max_wait_time:
+        try:
+            # Check multiple indicators that CAPTCHA is solved
+            solved_indicators = [
+                # Google search results are back
+                (By.ID, "search"),
+                (By.ID, "searchform"),
+                (By.CSS_SELECTOR, "#search .g"),  # Individual search results
+
+                # General page content indicators
+                (By.TAG_NAME, "body"),  # Basic page load
+            ]
+
+            for by_method, selector in solved_indicators:
+                try:
+                    element = driver.find_element(by_method, selector)
+                    if element and element.is_displayed():
+                        # Double-check that CAPTCHA is really gone
+                        captcha_present, _ = detect_captcha_advanced(driver)
+                        if not captcha_present:
+                            print("✅ CAPTCHA solved! Continuing scraping...")
+                            send_notification_to_frontend("CAPTCHA solved! Scraping resumed.")
+                            return True
+                except NoSuchElementException:
+                    continue
+
+            # Show progress
+            elapsed = int(time.time() - start_wait)
+            remaining = max_wait_time - elapsed
+            print(f"⏳ Waiting for CAPTCHA solution... ({elapsed}s elapsed, {remaining}s remaining)")
+
+        except Exception as e:
+            print(f"Error checking CAPTCHA status: {e}")
+
+        time.sleep(check_interval)
+
+    print("⏰ Timeout waiting for CAPTCHA to be solved.")
+    send_notification_to_frontend("CAPTCHA timeout! Scraping stopped.")
+    return False
 
 
 def load_existing_emails(csv_file="clients.csv"):
@@ -54,7 +197,7 @@ def save_new_emails_to_csv(new_emails, csv_file="clients.csv"):
 
 
 def search_and_save(search_query, existing_emails=None):
-    """Main scraping function"""
+    """Main scraping function with enhanced CAPTCHA handling"""
     if existing_emails is None:
         existing_emails = set()
 
@@ -85,50 +228,37 @@ def search_and_save(search_query, existing_emails=None):
             print(f"Loaded page {current_page} of search results")
             time.sleep(3)  # Wait for page to load
 
-            # CAPTCHA detection
-            captcha_present = False
-            try:
-                # Check for recaptcha iframe or texts indicating CAPTCHA
-                if driver.find_elements(By.CSS_SELECTOR, "iframe[src*='recaptcha']") or \
-                        driver.find_elements(By.XPATH, "//*[contains(text(),'Select all images')]") or \
-                        driver.find_elements(By.XPATH, "//*[contains(text(),\"I'm not a robot\")]"):
-                    captcha_present = True
-            except Exception:
-                captcha_present = False
+            # Enhanced CAPTCHA detection
+            captcha_present, captcha_type = detect_captcha_advanced(driver)
 
             if captcha_present:
-                print("\nCAPTCHA detected! Please solve it manually in the browser window.")
-                print("The script will wait up to 5 minutes for you to complete it.")
-                # Wait max 5 minutes for the search results container to appear
-                start_wait = time.time()
-                solved = False
-                while time.time() - start_wait < 300:
-                    try:
-                        # Check if search results container is back
-                        if driver.find_element(By.ID, "search"):
-                            solved = True
-                            print("CAPTCHA solved. Continuing...")
-                            break
-                    except NoSuchElementException:
-                        pass
-                    time.sleep(3)
-                if not solved:
-                    print("Timeout waiting for CAPTCHA to be solved. Exiting.")
+                print(f"\n🔴 CAPTCHA detected (Type: {captcha_type})")
+
+                # Wait for CAPTCHA to be solved
+                if not wait_for_captcha_resolution(driver):
+                    print("Exiting due to CAPTCHA timeout.")
                     break
 
+                # Continue with scraping after CAPTCHA is solved
+                time.sleep(2)  # Brief pause after resolution
+
             # Extract page text
-            page_text = driver.find_element(By.TAG_NAME, "body").text
-            emails = re.findall(r'[a-zA-Z0-9_.+-]+@gmail\.com', page_text)
-            found_count = len(emails)
-            unique_emails = set(email.lower() for email in emails)
+            try:
+                page_text = driver.find_element(By.TAG_NAME, "body").text
+                emails = re.findall(r'[a-zA-Z0-9_.+-]+@gmail\.com', page_text)
+                found_count = len(emails)
+                unique_emails = set(email.lower() for email in emails)
 
-            # Filter out existing emails
-            new_emails = unique_emails - existing_emails
+                # Filter out existing emails
+                new_emails = unique_emails - existing_emails
 
-            print(f"Found {found_count} Gmail addresses ({len(unique_emails)} unique) on this page")
-            print(f"New emails (not in clients.csv): {len(new_emails)}")
+                print(f"Found {found_count} Gmail addresses ({len(unique_emails)} unique) on this page")
+                print(f"New emails (not in clients.csv): {len(new_emails)}")
 
-            all_emails.update(new_emails)
+                all_emails.update(new_emails)
+            except Exception as e:
+                print(f"Error extracting emails: {e}")
+                continue
 
             # Find next page button
             try:
@@ -171,6 +301,7 @@ def search_and_save(search_query, existing_emails=None):
         driver.quit()
 
 
+# Rest of your existing functions remain the same...
 def process_single_query(query):
     """Process a single search query"""
     print(f"Processing single query: {query}")
