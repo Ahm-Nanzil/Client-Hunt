@@ -592,9 +592,9 @@ HTML_TEMPLATE = '''<!DOCTYPE html>
         
         <form id="emailForm">
             <button type="submit" id="sendBatch">Send Next Batch ({{ batch_size }} emails)</button>
-            <button type="button" onclick="resetCampaign()" class="reset">Reset Campaign</button>
             <button type="button" onclick="startScraping()" id="scrapingBtn" class="scraping">Start Scraping</button>
             <button type="button" onclick="showModal()" id="modalBtn" class="scraping">Modal Show</button>
+            <button type="button" onclick="resetCampaign()" class="reset">Reset Campaign</button>
             <button type="button" onclick="window.location.href='/config'" class="reset">⚙️ Settings</button>
 
         </form>
