@@ -1,5 +1,5 @@
 {
-  "batch_size": 50,
+  "batch_size": 450,
   "smtp_server": "smtp.gmail.com",
   "smtp_port": 587,
   "email_user": "ahmnanzil33@gmail.com",
