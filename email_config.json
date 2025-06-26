@@ -1,9 +1,9 @@
 {
-  "batch_size": 450,
+  "batch_size": 1,
   "smtp_server": "smtp.gmail.com",
   "smtp_port": 587,
   "email_user": "ahmnanzil33@gmail.com",
   "email_password": "hpitjdlzhhmnhurc",
   "sender_name": "Web Development",
-  "sender_email": "ahmnanzil@web.service"
+  "sender_email": "ahmnanzil22334@gmail.com"
 }

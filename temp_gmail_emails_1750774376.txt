@@ -1,0 +1,14 @@
+Search Query: site:instagram.com "fitness Coach" "@gmail.com" "Toronto"
+site:instagram.com "fitness Coach" "@gmail.com" "Montreal"
+site:instagram.com "fitness Coach" "@gmail.com" "Vancouver"
+site:instagram.com "fitness Coach" "@gmail.com" "Calgary"
+site:instagram.com "fitness Coach" "@gmail.com" "Edmonton"
+site:instagram.com "fitness Coach" "@gmail.com" "Ottawa"
+site:instagram.com "fitness Coach" "@gmail.com" "Winnipeg"
+site:instagram.com "fitness Coach" "@gmail.com" "Quebec City"
+site:instagram.com "fitness Coach" "@gmail.com" "Hamilton"
+site:instagram.com "fitness Coach" "@gmail.com" "Kitchener"
+
+Extraction Time: 2025-06-24 20:12:56
+==================================================
+

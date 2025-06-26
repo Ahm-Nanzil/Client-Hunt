@@ -1,0 +1,8 @@
+Search Query: site:instagram.com "fitness Coach" "@gmail.com" "Toronto"
+site:instagram.com "fitness Coach" "@gmail.com" "Montreal"
+site:instagram.com "fitness Coach" "@gmail.com" "Vancouver"
+
+
+Extraction Time: 2025-06-24 20:14:19
+==================================================
+

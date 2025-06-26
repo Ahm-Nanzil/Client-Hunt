@@ -64,7 +64,7 @@ class EmailCampaignManager:
             'email_user': 'ahmnanzil33@gmail.com',
             'email_password': 'hpitjdlzhhmnhurc',
             'sender_name': 'Web Development',
-            'sender_email': 'ahmnanzil@web.service'
+            'sender_email': 'ahmnanzil22334@gmail.com'
         }
 
         if os.path.exists(CONFIG_FILE):
