@@ -274,45 +274,50 @@
                 });
 
             } else if (formMultiple) {
-                console.log("🟢 Binding Multiple Query Form");
+                    console.log("🟢 Binding Multiple Query Form");
 
-                formMultiple.addEventListener('submit', function(e) {
-                    e.preventDefault();
+                    formMultiple.addEventListener('submit', function(e) {
+                        e.preventDefault();
 
-                    const queriesText = document.getElementById('queries') ? document.getElementById('queries').value : '';
-                    const resultDiv = document.getElementById('result');
+                        const queriesText = document.getElementById('queries') ? document.getElementById('queries').value : '';
+                        const resultDiv = document.getElementById('resultMultiple');
 
-                    const queries = queriesText.split('\\n').filter(function(q) { return q.trim() !== ''; });
+                        // Split queries by newline and clean them up
+                        const queries = queriesText.split('\n')
+                            .map(q => q.trim())
+                            .filter(q => q !== '');
 
-                    if (queries.length === 0) {
-                        resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
+                        if (queries.length === 0) {
+                            resultDiv.innerHTML = '<div class="result error">Please enter valid search queries.</div>';
+                            resultDiv.style.display = 'block';
+                            return;
+                        }
+
+                        // Log the queries to verify format
+                        console.log("Processed queries:", queries);
+
+                        resultDiv.innerHTML = '<div class="result loading">Scraping in progress...</div>';
                         resultDiv.style.display = 'block';
-                        return;
-                    }
 
-                    resultDiv.innerHTML = '<div class="result loading">Scraping ' + queries.length + ' queries in progress...</div>';
-                    resultDiv.style.display = 'block';
-
-                    fetch('/process_scrape', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            type: 'multiple',
-                            queries: queries
+                        fetch('/process_scrape', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                type: 'multiple',
+                                queries: queries  // Sending as array of strings
+                            })
                         })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        resultDiv.innerHTML = '<div class="result ' + (data.success ? 'success' : 'error') + '">' + data.message + '</div>';
-                    })
-                    .catch(error => {
-                        resultDiv.innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
+                        .then(response => response.json())
+                        .then(data => {
+                            resultDiv.innerHTML = '<div class="result ' + (data.success ? 'success' : 'error') + '">' + data.message + '</div>';
+                        })
+                        .catch(error => {
+                            resultDiv.innerHTML = '<div class="result error">Error: ' + error.message + '</div>';
+                        });
                     });
-                });
-
-            } else {
+                } else {
                 console.warn("⚠️ No matching form found in modal.");
             }
         }

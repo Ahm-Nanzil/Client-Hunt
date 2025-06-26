@@ -12,24 +12,6 @@ from pathlib import Path
 from gtts import gTTS
 import pygame
 import tempfile
-from datetime import datetime
-
-# Constants
-QUERY_LOG_FILE = "search_queries.log"  # File to store all search queries
-
-
-def log_query(query, query_type="single"):
-    """Log the search query to a file with timestamp"""
-    try:
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = f"{timestamp} - {query_type.upper()} - {query}\n"
-
-        with open(QUERY_LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(log_entry)
-
-        print(f"Logged query: {query} (Type: {query_type})")
-    except Exception as e:
-        print(f"Error logging query: {e}")
 
 
 def play_captcha_alert():
@@ -237,9 +219,6 @@ def process_single_query(query):
     """Process a single search query"""
     print(f"Processing single query: {query}")
 
-    # Log the query
-    log_query(query, "single")
-
     # Load existing emails
     existing_emails = load_existing_emails()
 
@@ -271,9 +250,6 @@ def process_multiple_queries(queries):
     for i, query in enumerate(queries, 1):
         print(f"\n--- Processing Query {i}/{len(queries)} ---")
         print(f"Query: {query}")
-
-        # Log each query
-        log_query(query, "multiple")
 
         # Scrape new emails
         new_emails, temp_file = search_and_save(query, existing_emails | all_new_emails)
@@ -324,6 +300,12 @@ def scrape_emails(query_type, queries):
 
 if __name__ == "__main__":
     # Test with single query
-    query = 'site:instagram.com "fitness Coach" "@gmail.com"'
-    result = scrape_emails("single", query)
+    test_queries = [
+        'site:instagram.com "fitness Coach" "@gmail.com" "Toronto"',
+        'site:instagram.com "fitness Coach" "@gmail.com" "Montreal"',
+        'site:instagram.com "fitness Coach" "@gmail.com" "Vancouver"',
+        'site:instagram.com "fitness Coach" "@gmail.com" "Calgary"'
+    ]
+    result = scrape_emails("multiple", test_queries)
     print(f"Found {result} new emails")
+
